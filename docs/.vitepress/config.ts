@@ -12,6 +12,7 @@ export default defineConfig({
     nav: [
       { text: '首页', link: '/' },
       { text: '无人机', link: '/uav/intro' },
+      { text: 'AI YOLO', link: '/ai-yolo/intro' },
     ],
 
     sidebar: {
@@ -20,6 +21,14 @@ export default defineConfig({
           text: '无人机基础',
           items: [
             { text: '简介', link: '/uav/intro' },
+          ],
+        },
+      ],
+      '/ai-yolo/': [
+        {
+          text: 'AI YOLO',
+          items: [
+            { text: '简介', link: '/ai-yolo/intro' },
           ],
         },
       ],
