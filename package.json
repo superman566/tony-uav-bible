@@ -1,0 +1,19 @@
+{
+  "name": "tony-uav-bible",
+  "version": "1.0.0",
+  "description": "Tony's UAV learning notes",
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/superman566/tony-uav-bible.git"
+  },
+  "type": "module",
+  "license": "ISC",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
