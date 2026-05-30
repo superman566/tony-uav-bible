@@ -1,0 +1,94 @@
+/* ── Sidebar 收起 / 展开 ── */
+@media (min-width: 960px) {
+  /* 给 sidebar 加动画（覆盖 VitePress 默认 transition） */
+  .VPSidebar {
+    transition: transform 0.25s ease !important;
+  }
+
+  /* 内容区 padding 动画 */
+  .VPContent.has-sidebar {
+    transition: padding-left 0.25s ease;
+  }
+
+  /* 收起状态：sidebar 滑出屏幕 */
+  [data-sidebar-collapsed="true"] .VPSidebar {
+    transform: translateX(-100%) !important;
+  }
+
+  /* 收起状态：内容区占满宽度 */
+  [data-sidebar-collapsed="true"] .VPContent.has-sidebar {
+    padding-left: 0 !important;
+  }
+}
+
+@media (min-width: 1440px) {
+  [data-sidebar-collapsed="true"] .VPContent.has-sidebar {
+    padding-left: calc((100vw - var(--vp-layout-max-width)) / 2) !important;
+  }
+}
+
+/* 收起按钮：在 sidebar 顶部 */
+.sidebar-collapse-btn {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-bottom: 8px;
+    margin-left: auto;
+    border-radius: 6px;
+    border: 1px solid var(--vp-c-divider);
+    background: transparent;
+    color: var(--vp-c-text-3);
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .sidebar-collapse-btn:hover {
+    background: var(--vp-c-default-soft);
+    color: var(--vp-c-text-1);
+  }
+}
+
+/* 展开按钮：固定在屏幕左侧（Teleport 到 body） */
+.sidebar-expand-btn {
+  position: fixed;
+  top: calc(var(--vp-nav-height) + 16px);
+  left: 0;
+  z-index: var(--vp-z-index-sidebar);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 36px;
+  border-radius: 0 6px 6px 0;
+  border: 1px solid var(--vp-c-divider);
+  border-left: none;
+  background: var(--vp-c-bg-elv);
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  box-shadow: var(--vp-shadow-1);
+  transition: background 0.2s, color 0.2s;
+}
+
+.sidebar-expand-btn:hover {
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-1);
+}
+
+/* 展开按钮出现/消失动画 */
+.sidebar-expand-enter-active,
+.sidebar-expand-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-expand-enter-from,
+.sidebar-expand-leave-to {
+  opacity: 0;
+  transform: translateX(-100%);
+}
