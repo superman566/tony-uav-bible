@@ -27,8 +27,10 @@ export default defineConfig({
       '/ai-yolo/': [
         {
           text: 'AI YOLO',
+          collapsed: false,
           items: [
             { text: '简介', link: '/ai-yolo/intro' },
+            { text: '搭建深度学习开发环境', link: '/ai-yolo/dl-env-setup' },
           ],
         },
       ],
