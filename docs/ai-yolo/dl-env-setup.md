@@ -443,6 +443,110 @@ watch -n 1 nvidia-smi
 - **追求低温安静**：Lian Li O11 Dynamic EVO 机箱 + Arctic Liquid Freezer III 360，性价比最高的水冷方案
 - **不需要自定义水冷**：对训练速度没有帮助，维护成本高
 
+## 软件选择
+
+在搭建深度学习环境之前，先理解各平台的软件栈层次——这是避免版本冲突、快速排查问题的基础。
+
+---
+
+### Nvidia 方案（Windows / Linux）
+
+#### 软件栈层次
+
+![Nvidia 驱动与 CUDA 的关系](/images/nvidia-cuda-layers.png)
+
+整个软件栈从下到上分为四层：
+
+| 层级 | 名称 | 作用 |
+|------|------|------|
+| **硬件** | GPU | 物理计算单元 |
+| **Driver** | Nvidia 驱动 | 让操作系统识别并控制 GPU |
+| **CUDA** | Compute Unified Device Architecture | GPU 并行计算平台，提供编程接口 |
+| **框架** | PyTorch / TensorFlow 等 | 你实际写代码的层，底层调用 CUDA |
+
+图中各层的**宽度**有意义：CUDA 比 PyTorch 宽，代表 CUDA 同时支撑多个框架；Driver 和 OS 最宽，是整个系统的地基。
+
+#### 版本对应关系（关键）
+
+三层版本必须**严格匹配**，否则运行时报错：
+
+```
+Driver 版本 ≥ CUDA 所需最低驱动版本
+CUDA 版本  ↔  cuDNN 版本
+cuDNN 版本 ↔  PyTorch / TensorFlow 版本
+```
+
+例如 PyTorch 2.1 需要 CUDA 11.8 或 12.1，对应特定 cuDNN，Driver 需满足该 CUDA 版本的最低要求。
+
+#### 安装方式推荐
+
+| 方式 | 推荐度 | 说明 |
+|------|--------|------|
+| **Docker 容器** | ⭐⭐⭐ | Nvidia 官方镜像版本已对齐，最省心 |
+| **Conda + pip** | ⭐⭐ | `conda install pytorch -c pytorch -c nvidia` 自动拉对应 CUDA |
+| **手动安装** | ⭐ | 自行匹配版本，最容易出冲突 |
+
+---
+
+### Mac 方案（Apple Silicon）
+
+#### 软件栈层次
+
+```
+PyTorch（device="mps"）
+        ↓
+MPS（Metal Performance Shaders）  ← 相当于 CUDA
+        ↓
+Metal                              ← Apple 的 GPU 编程框架
+        ↓
+macOS（驱动已内置，无需单独安装）
+        ↓
+Apple Silicon 硬件
+```
+
+**与 Nvidia 方案最大的区别**：Driver + CUDA + cuDNN 这三层全部省掉，Metal/MPS 内置在 macOS 里，系统更新自动升级，无需手动管理版本。
+
+#### 安装（只需两步）
+
+```bash
+# 1. 创建 conda 环境
+conda create -n yolo python=3.10 -y
+conda activate yolo
+
+# 2. 安装 PyTorch（自动支持 MPS，无需指定 CUDA 版本）
+pip install torch torchvision torchaudio
+```
+
+#### 验证 GPU 可用
+
+```python
+import torch
+print(torch.backends.mps.is_available())  # True
+print(torch.backends.mps.is_built())      # True
+```
+
+#### 使用时指定设备
+
+```python
+device = "mps" if torch.backends.mps.is_available() else "cpu"
+model = model.to(device)
+```
+
+---
+
+### 两种方案对比
+
+| 维度 | Nvidia（CUDA） | Mac（MPS） |
+|------|--------------|-----------|
+| GPU 编程框架 | CUDA + cuDNN | Metal + MPS |
+| 驱动安装 | 需手动安装 | 内置于 macOS |
+| 版本管理复杂度 | 高（三层需匹配） | 低（随系统自动更新） |
+| PyTorch 设备参数 | `device="cuda"` | `device="mps"` |
+| 生态兼容性 | ★★★★★ | ★★★☆☆ |
+| 安装难度 | ★★★☆☆ | ★☆☆☆☆ |
+
+---
+
 ## 软件环境
 
 ### 1. 安装 NVIDIA 驱动
