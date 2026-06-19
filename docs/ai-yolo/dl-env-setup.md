@@ -606,6 +606,239 @@ yolo checks
 
 ---
 
+## 用 Docker + VS Code 做本地开发
+
+相比直接在宿主机上安装 CUDA / conda 环境，**Docker 容器**能让你把整个开发环境打包成一个镜像，彻底告别"在我机器上能跑"的问题——团队协作、换机迁移、多项目隔离都变得轻松。结合 **VS Code Dev Containers**，你可以在容器内获得和本地开发几乎一模一样的体验：代码补全、调试器、终端全部正常工作。
+
+---
+
+### 为什么选 Docker
+
+| 问题 | 不用 Docker | 用 Docker |
+|------|------------|----------|
+| 多项目 CUDA 版本冲突 | 手动切 conda 环境，容易出错 | 每个项目一个镜像，互不干扰 |
+| 换机迁移 | 重新装驱动 + 环境，耗时数小时 | `docker pull` + `docker run`，几分钟搞定 |
+| 团队协作 | "你那边能跑但我这里报错" | 镜像一致，环境完全相同 |
+| 生产部署 | 本地和服务器环境不一致 | 开发镜像即部署镜像 |
+
+---
+
+### 前置条件
+
+#### NVIDIA 主机（Windows / Linux）
+
+```bash
+# 1. 安装 Docker Engine（Linux）
+curl -fsSL https://get.docker.com | sh
+
+# 2. 安装 NVIDIA Container Toolkit（让容器内能访问 GPU）
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+
+# 3. 重启 Docker 使 GPU 支持生效
+sudo systemctl restart docker
+
+# 验证 GPU 在容器内可访问
+docker run --rm --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
+```
+
+Windows 用户推荐使用 **Docker Desktop**（内置 WSL2），安装 NVIDIA Container Toolkit 的 WSL2 版本后同样支持 GPU 直通。
+
+#### Mac（Apple Silicon）
+
+Mac 上的 Docker Desktop 目前**不支持 MPS 直通**（Metal 不能透传到容器），容器内只能跑 CPU。
+
+如果你的主力工作是本地训练，Mac 用户建议：
+- **日常代码开发**：用 Docker 容器（CPU），验证代码逻辑
+- **实际训练**：直接在宿主机 conda 环境（`device="mps"`）跑
+
+---
+
+### 选择基础镜像
+
+NVIDIA 官方提供的 NGC 镜像已经预装好 CUDA + cuDNN + PyTorch，是最省心的选择：
+
+| 镜像 | 适合场景 | 示例 tag |
+|------|---------|---------|
+| `pytorch/pytorch` | 直接用 PyTorch，轻量 | `pytorch/pytorch:2.3.0-cuda12.1-cudnn8-runtime` |
+| `nvcr.io/nvidia/pytorch` | NGC 官方，预装更多工具 | `nvcr.io/nvidia/pytorch:24.05-py3` |
+| `ultralytics/ultralytics` | 直接用 YOLO，开箱即用 | `ultralytics/ultralytics:latest` |
+
+> 建议从 `ultralytics/ultralytics` 开始，它已经包含了 CUDA、PyTorch、Ultralytics，不用写 Dockerfile。
+
+---
+
+### 项目文件结构
+
+```
+project/
+├── .devcontainer/
+│   └── devcontainer.json   # VS Code Dev Container 配置
+├── docker-compose.yml       # 容器启动配置
+├── data/
+├── weights/
+└── train.py
+```
+
+---
+
+### docker-compose.yml
+
+```yaml
+services:
+  yolo-dev:
+    image: ultralytics/ultralytics:latest
+    container_name: yolo-dev
+    runtime: nvidia          # 启用 GPU（Mac 上去掉这行）
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - .:/workspace         # 把项目目录挂载进容器
+      - ~/.ssh:/root/.ssh:ro # 可选：挂载 SSH key，方便 git 操作
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    ports:
+      - "8888:8888"          # Jupyter Lab
+      - "6006:6006"          # TensorBoard
+    shm_size: "8gb"          # 增大共享内存，DataLoader 多进程必需
+```
+
+启动容器：
+
+```bash
+docker compose up -d
+```
+
+---
+
+### VS Code Dev Container 配置
+
+在项目根目录创建 `.devcontainer/devcontainer.json`：
+
+```json
+{
+  "name": "YOLO Dev",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "yolo-dev",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylance",
+        "ms-toolsai.jupyter",
+        "njpwerner.autodocstring",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/bin/python3",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "remoteUser": "root",
+  "postCreateCommand": "pip install -e . 2>/dev/null || true"
+}
+```
+
+---
+
+### 用 VS Code 打开容器
+
+1. 安装 VS Code 插件：**Dev Containers**（`ms-vscode-remote.remote-containers`）
+2. 在项目目录下，按 `Cmd+Shift+P`（Mac）或 `Ctrl+Shift+P`（Windows/Linux）
+3. 选择 **"Dev Containers: Open Folder in Container"**
+4. VS Code 会自动拉取镜像、启动容器，并把整个编辑器接入容器内部
+
+此后，VS Code 左下角会显示 `Dev Container: YOLO Dev`，终端直接就是容器内的 shell。
+
+---
+
+### 验证 GPU 可用
+
+打开 VS Code 内置终端，运行：
+
+```bash
+# 方式一：nvidia-smi
+nvidia-smi
+
+# 方式二：Python 验证
+python - <<'EOF'
+import torch
+print("CUDA available:", torch.cuda.is_available())
+print("Device:", torch.cuda.get_device_name(0))
+print("YOLO version:", __import__('ultralytics').__version__)
+EOF
+```
+
+---
+
+### 常用操作速查
+
+```bash
+# 启动容器（后台运行）
+docker compose up -d
+
+# 进入已运行的容器（不用 VS Code 时）
+docker exec -it yolo-dev bash
+
+# 查看容器日志
+docker compose logs -f
+
+# 停止容器
+docker compose down
+
+# 重新构建镜像（更新了 Dockerfile 后）
+docker compose build --no-cache
+```
+
+---
+
+### 自定义 Dockerfile（可选）
+
+如果需要安装额外依赖或固定版本，可以自己写 Dockerfile：
+
+```dockerfile
+FROM ultralytics/ultralytics:latest
+
+# 安装项目额外依赖
+COPY requirements.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+WORKDIR /workspace
+```
+
+对应修改 `docker-compose.yml`，把 `image:` 改为 `build:`：
+
+```yaml
+services:
+  yolo-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # ... 其余配置不变
+```
+
+---
+
+### 小结
+
+| 步骤 | 操作 |
+|------|------|
+| 1 | 安装 Docker + NVIDIA Container Toolkit |
+| 2 | 创建 `docker-compose.yml`，选好基础镜像 |
+| 3 | 创建 `.devcontainer/devcontainer.json` |
+| 4 | VS Code 安装 Dev Containers 插件，打开容器 |
+| 5 | 验证 `nvidia-smi` 和 `torch.cuda.is_available()` |
+
+> Mac 用户如果只是想隔离依赖环境（不需要 GPU 直通），Docker + Dev Containers 同样适用，只需去掉 `runtime: nvidia` 相关配置，在宿主机训练、容器内开发。
+
+---
+
 ## 推荐工具
 
 | 工具 | 用途 |
