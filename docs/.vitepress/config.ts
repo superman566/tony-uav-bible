@@ -33,6 +33,7 @@ export default defineConfig({
 							text: '经典计算机视觉核心技术与算法',
 							link: '/ai-yolo/classic-cv-algorithms',
 						},
+						{ text: '图像识别的数学基础', link: '/ai-yolo/math-basics' },
 					],
 				},
 			],
