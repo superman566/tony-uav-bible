@@ -19,6 +19,16 @@
   [data-sidebar-collapsed="true"] .VPContent.has-sidebar {
     padding-left: 0 !important;
   }
+
+  /*
+   * navbar 左上角的 title 区域本身是透明的（VitePress 设计上依赖它下面的
+   * sidebar 背景色垫底）。sidebar 收起后这块垫底消失，被 padding-left: 0
+   * 顶上来的正文内容就会从透明的 title 区域后面透出来，看起来像是内容
+   * 跑到了 navbar 后面。收起时给 title 补一个不透明背景即可。
+   */
+  [data-sidebar-collapsed="true"] .VPNavBar.has-sidebar .title {
+    background-color: var(--vp-nav-bg-color);
+  }
 }
 
 @media (min-width: 1440px) {
