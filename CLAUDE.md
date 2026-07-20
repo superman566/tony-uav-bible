@@ -35,6 +35,10 @@ docs/
 
 **Adding a new note section:** create a folder under `docs/`, add `.md` files, then register the sidebar entries in `docs/.vitepress/config.ts` under `themeConfig.sidebar`.
 
+## Content Style
+
+All note content must be written in simple, easy-to-understand language (通俗易懂) — avoid dense textbook phrasing. Any non-trivial or abstract concept must be paired with a simple, concrete example (a number example, analogy, small diagram, or code snippet) that makes it click immediately, not just a definition.
+
 ## Deployment
 
 Pushes to `main` trigger the GitHub Actions workflow automatically. The workflow uses the official `actions/deploy-pages` approach (no `gh-pages` branch needed). Before the first deploy, enable GitHub Pages in the repo settings: **Settings → Pages → Source → GitHub Actions**.
