@@ -34,6 +34,7 @@ export default defineConfig({
 							link: '/ai-yolo/classic-cv-algorithms',
 						},
 						{ text: '图像识别的数学基础', link: '/ai-yolo/math-basics' },
+						{ text: '深度学习基础', link: '/ai-yolo/dl-basics' },
 					],
 				},
 			],
