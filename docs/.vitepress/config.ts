@@ -35,6 +35,10 @@ export default defineConfig({
 						},
 						{ text: '图像识别的数学基础', link: '/ai-yolo/math-basics' },
 						{ text: '深度学习基础', link: '/ai-yolo/dl-basics' },
+						{
+							text: '训练与优化神经网络',
+							link: '/ai-yolo/nn-training-optimization',
+						},
 					],
 				},
 			],
