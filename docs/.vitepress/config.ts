@@ -39,6 +39,10 @@ export default defineConfig({
 							text: '训练与优化神经网络',
 							link: '/ai-yolo/nn-training-optimization',
 						},
+						{
+							text: 'PyTorch 手写数字识别实战',
+							link: '/ai-yolo/pytorch-mnist',
+						},
 					],
 				},
 			],
