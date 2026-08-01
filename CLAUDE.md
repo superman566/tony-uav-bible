@@ -47,6 +47,7 @@ All note content must be written in simple, easy-to-understand language (通俗�
 
 Other conventions to follow, observed consistently across the existing notes:
 
+- **Every technical/专业 term must be given in both Chinese and English** on first use, e.g. `监督学习（Supervised Learning）`, `损失函数（Loss Function）`, `过拟合（Overfitting）` — never introduce a term in only one language.
 - **No LaTeX/math rendering plugin is installed.** Formulas are written as plain-text/pseudocode inside fenced code blocks (e.g. `∂J/∂w = (1/m) × Σ(...)`), always paired with a fully worked numeric example — not `$$...$$` math syntax, which will render as raw text.
 - **Long, dense docs end with a terminology glossary** (`## 术语表` or `## 词条解释`) listing key terms for quick lookup — see `classic-cv-algorithms.md` and `dl-env-setup.md`.
 - **Section grouping**: newer/restructured long docs group flat `##` sections under thematic `## Part N：主题` headings (see `dl-basics.md`, `nn-training-optimization.md`); older docs (`classic-cv-algorithms.md`, `dl-env-setup.md`, `math-basics.md`) still use flat `##` sections. Prefer `## Part N` grouping for new long docs.
