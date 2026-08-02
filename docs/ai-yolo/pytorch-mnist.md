@@ -25,6 +25,8 @@ https://pytorch.org/
 - **学术界**：占绝对主导。近几年顶会论文里用 PyTorch 实现的比例常年在 70%~90% 区间，明显超过 TensorFlow。
 - **工业界**：早期 TensorFlow 靠 TF Serving、TFLite 在生产部署上更有优势；这几年 PyTorch 通过 TorchServe、ONNX 导出、`torch.compile` 等逐步补齐，加上几乎所有主流大模型都用它训练，目前综合来看 PyTorch 已经是行业首选，TensorFlow 份额持续下滑。
 
+![PyTorch 与 TensorFlow 占比对比](/images/PytorchvsTensorflow.png)
+
 > 以上是行业里公认的大致趋势，不是精确统计数字——如果要在正式材料里引用具体百分比，建议查最新的 Papers with Code / State of AI 报告等来源核实。
 
 ### 支持哪些平台
@@ -44,7 +46,7 @@ https://pytorch.org/
 安装：
 
 ```bash
-pip install torch torchvision torchaudio
+pip install torch torchvision
 ```
 
 核心工作流程就 4 步，写代码时基本都是照着这个顺序来：
@@ -58,16 +60,14 @@ pip install torch torchvision torchaudio
 
 #### PyTorch 生态里的几个主要库
 
-**一句话理解**：`pip install torch torchvision torchaudio` 这一行，装的其实是一个核心库 + 两个"领域专用工具箱"——核心库不关心你处理的是图片、声音还是文本，工具箱负责各自领域的数据集、预处理和现成模型。除了这三个常装的，生态里还有一个针对文本的 `torchtext`，只是现状和前三个不太一样。
+**一句话理解**：`pip install torch torchvision` 这一行，装的其实是一个核心库 + 一个"领域专用工具箱"——核心库不关心你处理的是图片、声音还是文本，工具箱负责各自领域的数据集、预处理和现成模型。
 
 | 库 | 定位 | 提供什么 |
 |-|-|-|
 | **torch** | 核心库（Core Library） | 最基础的能力：Tensor（张量）运算、自动求导（Autograd）、`nn.Module` 搭网络结构、`optim` 优化器——不管数据是图片、声音还是文本，都要靠它 |
 | **torchvision** | 计算机视觉扩展（Computer Vision） | 图像专用：现成数据集（MNIST、CIFAR、ImageNet…）、图像预处理（`transforms.ToTensor`、`Normalize`…）、经典预训练模型（ResNet 等） |
-| **torchaudio** | 音频扩展（Audio） | 声音专用：音频数据集、波形/频谱图处理、语音相关的预训练模型 |
-| **torchtext** | 文本/NLP 扩展（Natural Language Processing） | 文本数据集、分词（tokenizer）、词向量等 NLP 预处理工具——但已基本停止维护，现在做 NLP 更多直接用建立在 PyTorch 之上的 Hugging Face `transformers` 库，很少再单独装它 |
 
-对应到本篇要做的事：`torch` 是必需的地基，`torchvision` 是主力（加载 MNIST、做图像预处理，后面 YOLO 系列也一直靠它），`torchaudio`、`torchtext` 这篇都用不上——前者装环境时顺手一起装不影响什么，后者现在基本不用装了。
+对应到本篇要做的事：`torch` 是必需的地基，`torchvision` 是主力（加载 MNIST、做图像预处理，后面 YOLO 系列也一直靠它）。
 
 ## Part 2：认识数据集——MNIST（背景知识）
 
