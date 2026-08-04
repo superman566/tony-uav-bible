@@ -348,22 +348,22 @@ print("saved pytorch model")
 
 ## 术语表
 
-### Batch Normalization（批归一化）
+### Batch Normalization（批归一化） {.ignore-header}
 
 在网络的每一层输出上，用当前这批（batch）数据算出的均值和标准差做一次归一化，让传给下一层的数值范围更稳定，训练更快更稳。评估模式（`model.eval()`）下会改用训练过程中累积的统计量，而不是当前批次的。
 
-### Dropout（随机丢弃）
+### Dropout（随机丢弃） {.ignore-header}
 
 训练时按一定比例（比如 0.5 = 50%）随机把某些神经元的输出临时设成 0，防止网络过度依赖某几个神经元、死记硬背训练数据。只在训练模式下生效，评估模式下所有神经元都正常参与。
 
-### argmax
+### argmax {.ignore-header}
 
 从一组数字里找出"最大值所在的位置（索引）"，而不是最大值本身。`pred.argmax(1)` 是在每张图的 10 个类别分数里，找出分数最高的那个类别的编号，也就是模型的最终预测结果。
 
-### epoch / batch 回顾
+### epoch / batch 回顾 {.ignore-header}
 
 一次完整遍历训练集叫一个 epoch；训练集被切成的每一小份叫一个 batch。本篇 `BATCH_SIZE=128`，60000 张训练图对应每个 epoch 469 个 batch，一共训练了 20 个 epoch。
 
-### state_dict
+### state_dict {.ignore-header}
 
 模型里所有可训练参数（权重、偏置）的一份字典快照，`torch.save(model.state_dict(), path)` / `model.load_state_dict(...)` 是保存和加载模型最常用的方式。

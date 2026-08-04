@@ -44,6 +44,10 @@ export default defineConfig({
 							link: '/ai-yolo/pytorch-mnist',
 						},
 						{ text: '卷积神经网络（CNN）', link: '/ai-yolo/cnn-basics' },
+						{
+							text: '目标检测基础',
+							link: '/ai-yolo/object-detection-basics',
+						},
 					],
 				},
 			],

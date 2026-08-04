@@ -413,7 +413,7 @@ closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
 ## 术语表
 
-### RGB
+### RGB {.ignore-header}
 
 **红(R) + 绿(G) + 蓝(B)** 三种颜色混合表示一个像素的颜色。
 
@@ -429,7 +429,7 @@ closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
 ---
 
-### YUV
+### YUV {.ignore-header}
 
 把图像信息拆成两部分：**亮度 + 颜色**。
 
@@ -444,7 +444,7 @@ closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
 ---
 
-### RGB vs YUV
+### RGB vs YUV {.ignore-header}
 
 | | RGB | YUV |
 |-|-----|-----|
@@ -455,7 +455,7 @@ closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
 
 ---
 
-### ROI（Region of Interest，感兴趣区域）
+### ROI（Region of Interest，感兴趣区域） {.ignore-header}
 
 图像里你真正关心、需要重点处理的一小块区域，其余部分先不管。
 
@@ -474,7 +474,7 @@ roi = img[y1:y2, x1:x2]   # 先行(高/y)后列(宽/x)，顺序和常见的 (x, 
 
 ---
 
-### Kernel（卷积核）
+### Kernel（卷积核） {.ignore-header}
 
 一个在图像上滑动、做加权求和的小矩阵，数字设计不同就能实现模糊、锐化、边缘检测等不同效果。
 

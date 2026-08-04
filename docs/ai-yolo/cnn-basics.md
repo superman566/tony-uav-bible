@@ -666,102 +666,102 @@ VGG-16 的全连接头参数量  ≈ 123,642,856
 
 ## 术语表
 
-### 卷积（Convolution）
+### 卷积（Convolution） {.ignore-header}
 
 用一个小的数字矩阵（卷积核）在输入图片上滑动，每滑到一个位置就和覆盖到的那一小块区域做逐元素相乘再求和，得到输出特征图上的一个数字。
 
-### 卷积核 / 滤波器（Kernel / Filter）
+### 卷积核 / 滤波器（Kernel / Filter） {.ignore-header}
 
 卷积操作里那个滑动的小矩阵（比如 3×3），本身就是需要训练学出来的参数。同一个卷积核滑到图片任何位置都用同一组参数（参数共享），负责找某一种局部模式（比如某个方向的边缘）。
 
-### 特征图（Feature Map）
+### 特征图（Feature Map） {.ignore-header}
 
 一个卷积核扫完整张输入图片后得到的输出矩阵。一层卷积通常会用多个卷积核，各自产出一张特征图，摞在一起形成下一层的多通道输入。
 
-### 三维卷积（Convolution over Volume）
+### 三维卷积（Convolution over Volume） {.ignore-header}
 
 当输入有多个通道时，卷积核也要跟着长出同样多的层数（比如输入 2 通道，核就是 3×3×2），扫的时候把宽、高、通道三个维度一起逐元素相乘再求和，最后合成一个数字——不管输入多少个通道，一个核扫完输出永远是一张深度为 1 的特征图。
 
-### 多核卷积（Multi-Kernel Convolution）
+### 多核卷积（Multi-Kernel Convolution） {.ignore-header}
 
 同时用多个三维卷积核并行扫同一个输入，每个核各自学着找不同的局部模式、各自产出一张特征图，摞在一起就构成了输出的深度（通道数）。`nn.Conv2d` 的 `out_channels` 参数就是核的个数。
 
-### 步长（Stride）
+### 步长（Stride） {.ignore-header}
 
 卷积核每次滑动的格数。步长为 1 表示每次只挪一格，步长为 2 表示每次跳过一格，步长越大输出的特征图越小。
 
-### 填充（Padding）
+### 填充（Padding） {.ignore-header}
 
 在输入图片外围补一圈（通常是 0），防止每卷一层图片尺寸都缩小，也能让边缘的像素被卷积核扫到更多次。
 
-### 感受野（Receptive Field）
+### 感受野（Receptive Field） {.ignore-header}
 
 输出特征图上一个数字，对应到原始输入图片上的那一小块区域。网络越深，后面层的感受野会越叠越大。
 
-### 参数共享（Parameter Sharing）
+### 参数共享（Parameter Sharing） {.ignore-header}
 
 同一个卷积核在图片不同位置滑动时，用的都是同一组参数，不会因为位置不同而更换参数——这是 CNN 参数量远小于全连接网络的核心原因。
 
-### 池化（Pooling）/ 最大池化（Max Pooling）
+### 池化（Pooling）/ 最大池化（Max Pooling） {.ignore-header}
 
 用一个小窗口在特征图上滑动，每个窗口只保留一个数字（最大池化取窗口内最大值），本身没有需要训练的参数，作用是压缩特征图尺寸、减少计算量。
 
-### 平移不变性（Translation Invariance）
+### 平移不变性（Translation Invariance） {.ignore-header}
 
 同一个局部模式（比如某个笔画形状）不管出现在图片的哪个位置，卷积核都能用同一组参数把它识别出来——全连接网络没有这个天生的能力。
 
-### ReLU（Rectified Linear Unit，修正线性单元）
+### ReLU（Rectified Linear Unit，修正线性单元） {.ignore-header}
 
 激活函数，公式是 `max(0, x)`——负数归零、正数原样输出。比 Sigmoid/Tanh 更不容易出现梯度消失，训练更快，是 AlexNet 之后 CNN 的默认激活函数。
 
-### Dropout（随机失活）
+### Dropout（随机失活） {.ignore-header}
 
 训练时按一定概率随机把部分神经元的输出置 0，防止网络过度依赖某几个神经元，是缓解全连接层参数量大、容易[过拟合](/ai-yolo/dl-basics)的常用正则化手段。
 
-### 数据增强（Data Augmentation）
+### 数据增强（Data Augmentation） {.ignore-header}
 
 训练时对原始图片做随机裁剪、翻转、改变颜色亮度等变换，相当于用同一批图片"人工造出"更多训练样本。
 
-### 重叠池化（Overlapping Pooling）
+### 重叠池化（Overlapping Pooling） {.ignore-header}
 
 池化窗口比步长大（比如窗口 3×3、步长 2），相邻窗口会重叠扫到部分相同区域——跟窗口=步长、互不重叠的普通池化相对。
 
-### 局部响应归一化（LRN，Local Response Normalization）
+### 局部响应归一化（LRN，Local Response Normalization） {.ignore-header}
 
 对相邻通道的输出做一次归一化、让它们互相抑制，模仿生物神经元的"侧抑制"现象。AlexNet 用过，后来被证明效果有限，已被 Batch Normalization 取代。
 
-### ImageNet / ILSVRC
+### ImageNet / ILSVRC {.ignore-header}
 
 ImageNet 是斯坦福大学团队整理的超大规模带标注图片数据库（约 1400 万张图片、2 万多个类别）；ILSVRC（ImageNet Large Scale Visual Recognition Challenge）是每年一届、用 ImageNet 子集（1000 类、约 120 万张训练图）举办的图像识别比赛，AlexNet 就是 2012 届的冠军。
 
-### VGGNet / VGG（Visual Geometry Group）
+### VGGNet / VGG（Visual Geometry Group） {.ignore-header}
 
 牛津大学视觉几何组在 2014 年提出的卷积神经网络，全程只用 3×3 卷积核和 2×2 池化，靠堆叠层数（最常见的版本 VGG-16 有 16 层带参数的层）加深网络来提升效果。结构规整、易于理解，后来常被当作各种视觉任务的骨干网络使用。
 
-### Same 卷积（Same Convolution）
+### Same 卷积（Same Convolution） {.ignore-header}
 
 卷积核边长 f、步长 s=1、填充 p 满足 `p=(f-1)/2`（比如 f=3,p=1）时，卷积前后输出尺寸和输入尺寸完全相同，因为公式 `⌊(n+2p-f)/s+1⌋` 算出来正好等于 n。
 
-### 骨干网络（Backbone）
+### 骨干网络（Backbone） {.ignore-header}
 
 深度学习模型里负责"提取通用特征"的那部分网络（通常是去掉最后分类头的预训练网络），后面接不同的任务头就能复用同一套特征去做检测、分割等不同任务。
 
-### 退化问题（Degradation Problem）
+### 退化问题（Degradation Problem） {.ignore-header}
 
 网络深度超过一定程度后，训练误差反而变高的现象——不是过拟合（过拟合是训练误差低、测试误差高），而是网络太深导致优化算法很难把所有层都调到位。ResNet 靠跳跃连接解决了这个问题。
 
-### 残差学习 / 跳跃连接（Residual Learning / Skip Connection）
+### 残差学习 / 跳跃连接（Residual Learning / Skip Connection） {.ignore-header}
 
 让一段网络只学"输出和输入的差值" `F(x)=H(x)-x`，再把原始输入 x 直接加回输出（`F(x)+x`），而不是让网络直接学完整的目标映射 `H(x)`。让这几层"什么都不做"（`F(x)≈0`）比让它们精确学会恒等映射更容易，从根上解决了退化问题。也叫捷径连接（Shortcut Connection）。
 
-### 瓶颈块（Bottleneck Block）
+### 瓶颈块（Bottleneck Block） {.ignore-header}
 
 ResNet-50/101/152 里用的残差块设计：先用 1×1 卷积压缩通道数，再用 3×3 卷积在压缩后的通道上计算，最后用 1×1 卷积恢复通道数——比直接在高通道数上用两层 3×3 卷积省下大量参数，让网络能堆得更深。
 
-### 批归一化（Batch Normalization，BN）
+### 批归一化（Batch Normalization，BN） {.ignore-header}
 
 对每一层的输出按 mini-batch 做归一化，让数据分布更稳定，训练更快更容易，是 ResNet 之后几乎所有网络的标配。
 
-### 全局平均池化（Global Average Pooling，GAP）
+### 全局平均池化（Global Average Pooling，GAP） {.ignore-header}
 
 把最后一层特征图的每个通道各自求一个平均值，直接把空间维度压没（比如 7×7×512 压成 512 个数字），不需要任何参数。ResNet 用它代替 Flatten+多层全连接，大幅减少了分类头的参数量。

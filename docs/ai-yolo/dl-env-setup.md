@@ -870,7 +870,7 @@ project/
 
 ## 词条解释
 
-### TFLOPS
+### TFLOPS {.ignore-header}
 
 **TFLOPS**（Tera Floating Point Operations Per Second）= 每秒万亿次浮点运算。
 
@@ -884,7 +884,7 @@ project/
 
 > 实际训练速度还受显存带宽、软件优化等影响，TFLOPS 只是理论峰值参考。
 
-### PCIe
+### PCIe {.ignore-header}
 
 **PCIe**（Peripheral Component Interconnect Express）是主板上连接 GPU、SSD 等高速设备的**数据通道标准**，可以理解为 CPU 和 GPU 之间的"高速公路"——训练时数据从内存传给 GPU、梯度再传回来，都走这条路。
 
