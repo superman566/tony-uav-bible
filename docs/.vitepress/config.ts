@@ -43,6 +43,7 @@ export default defineConfig({
 							text: 'PyTorch 手写数字识别实战',
 							link: '/ai-yolo/pytorch-mnist',
 						},
+						{ text: '卷积神经网络（CNN）', link: '/ai-yolo/cnn-basics' },
 					],
 				},
 			],
