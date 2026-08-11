@@ -48,6 +48,7 @@ export default defineConfig({
 							text: '目标检测基础',
 							link: '/ai-yolo/object-detection-basics',
 						},
+						{ text: 'YOLO 架构', link: '/ai-yolo/yolo-architecture' },
 					],
 				},
 			],
