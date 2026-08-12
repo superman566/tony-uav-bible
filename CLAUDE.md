@@ -53,6 +53,7 @@ Other conventions to follow, observed consistently across the existing notes:
 - **Section grouping**: newer/restructured long docs group flat `##` sections under thematic `## Part N：主题` headings (see `dl-basics.md`, `nn-training-optimization.md`); older docs (`classic-cv-algorithms.md`, `dl-env-setup.md`, `math-basics.md`) still use flat `##` sections. Prefer `## Part N` grouping for new long docs.
 - Cross-references between notes use relative markdown links with anchor text, e.g. `[逻辑回归](#逻辑回归-...)` or `[图像识别的数学基础](/ai-yolo/math-basics)` — link to the concept the first time it's reused rather than re-explaining it.
 - Images live under `docs/public/images/` and are referenced with absolute paths, e.g. `![说明](/images/cost_function_3d.png)`.
+- The user's actual working YOLO version is **YOLO26**, not YOLO11 or earlier — default any "how to use YOLO" content (CLI commands, Python API, training/inference behavior, default parameters) to YOLO26. When YOLO26 and YOLO11 differ in a way that changes usage (not just internal architecture), briefly call it out inline rather than silently writing YOLO11-era instructions. Known usage-relevant differences (see the YOLO26 section of `docs/ai-yolo/yolo-architecture.md`): NMS-Free (no separate NMS post-processing step, so `iou=`/NMS-threshold tuning that mattered for YOLO11 is largely moot), no DFL head (box-regression output structure explanations that lean on DFL don't carry over), and the MuSGD optimizer (training defaults differ from YOLO11's SGD/AdamW `optimizer=auto` behavior).
 
 ## Deployment
 

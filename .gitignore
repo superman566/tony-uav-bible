@@ -144,3 +144,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+__pycache__/
+*.pyc
+
+# Model weights / checkpoints
+*.pt
+*.onnx

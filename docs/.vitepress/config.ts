@@ -49,6 +49,7 @@ export default defineConfig({
 							link: '/ai-yolo/object-detection-basics',
 						},
 						{ text: 'YOLO 架构', link: '/ai-yolo/yolo-architecture' },
+						{ text: '如何使用 YOLO', link: '/ai-yolo/yolo-usage' },
 					],
 				},
 			],
