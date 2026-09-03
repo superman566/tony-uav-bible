@@ -152,3 +152,8 @@ __pycache__/
 # Model weights / checkpoints
 *.pt
 *.onnx
+
+# Local dataset, not for publishing
+docs/ai-yolo/yolo26/fire--4/
+docs/ai-yolo/yolo26/Wildfire-3
+docs/ai-yolo/yolo26/runs/
