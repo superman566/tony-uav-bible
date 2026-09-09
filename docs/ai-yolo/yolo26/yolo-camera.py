@@ -7,7 +7,7 @@ import time
 
 # 定义变量
 # MODEL_PATH='yolo26l.pt'
-MODEL_PATH='/Users/guochaohe/projects/drones/tony-uav-bible/docs/ai-yolo/yolo26/runs/detect/train-2/weights/best.pt'
+MODEL_PATH='/Users/guochaohe/projects/drones/tony-uav-bible/docs/ai-yolo/yolo26/runs/detect/train/weights/best.pt'
 CAMERA_ID=0
 SHOW_FPS=True
 
@@ -46,7 +46,7 @@ while True:
                     verbose=False)
 
     # 显示结果
-    ann_frame = results[0].plot(labels=False, conf=False)
+    ann_frame = results[0].plot(labels=False, conf=True)
 
     if SHOW_FPS:
         current_time = time.time()
