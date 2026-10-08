@@ -13,6 +13,7 @@ export default defineConfig({
 			{ text: '首页', link: '/' },
 			{ text: '无人机', link: '/uav/intro' },
 			{ text: 'AI YOLO', link: '/ai-yolo/intro' },
+			{ text: 'ROS + PX4', link: '/ros-px4/px4-pixhawk-basics' },
 		],
 
 		sidebar: {
@@ -51,6 +52,15 @@ export default defineConfig({
 						{ text: 'YOLO 架构', link: '/ai-yolo/yolo-architecture' },
 						{ text: '如何使用 YOLO', link: '/ai-yolo/yolo-usage' },
 						{ text: 'Transformer', link: '/ai-yolo/transformer' },
+					],
+				},
+			],
+			'/ros-px4/': [
+				{
+					text: 'ROS2 + PX4',
+					collapsed: false,
+					items: [
+						{ text: 'PX4 与 Pixhawk 是什么', link: '/ros-px4/px4-pixhawk-basics' },
 					],
 				},
 			],

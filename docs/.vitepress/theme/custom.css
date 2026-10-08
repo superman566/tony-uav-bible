@@ -102,3 +102,12 @@
   opacity: 0;
   transform: translateX(-100%);
 }
+
+/* 图片点击放大（medium-zoom）：遮罩和放大图要盖在导航栏之上 */
+.medium-zoom-overlay {
+  z-index: 100;
+}
+
+.medium-zoom-image--opened {
+  z-index: 101;
+}
