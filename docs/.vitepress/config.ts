@@ -61,6 +61,7 @@ export default defineConfig({
 					collapsed: false,
 					items: [
 						{ text: 'PX4 与 Pixhawk 是什么', link: '/ros-px4/px4-pixhawk-basics' },
+						{ text: 'ROS 2 基础', link: '/ros-px4/ros2-basics' },
 					],
 				},
 			],
