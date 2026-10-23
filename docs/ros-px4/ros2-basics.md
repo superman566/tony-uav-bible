@@ -262,3 +262,103 @@ Part 2 提到 ROS 2 的底层是 DDS，可以设置"丢了要不要重发"，这
 **举个例子**：`/camera/image` 用 Best Effort，网络卡顿时丢掉几张旧照片，烟火识别节点直接拿最新的一张来识别；`/fire_alert` 用 Reliable，因为漏掉一条"发现火"的警报后果严重。
 
 **一个常见的坑**：发布者用 Best Effort、订阅者用 Reliable，两边**不兼容，订阅者收不到任何数据**。订阅者要求"保证送到"，发布者却做不到。反过来（发布者 Reliable、订阅者 Best Effort）是可以的。PX4 通过 uXRCE-DDS 发到 ROS 2 的话题大多是 Best Effort，所以订阅 PX4 的话题时，要把订阅者的 QoS 也设成 Best Effort。
+
+## Part 6：用 rclpy 写第一个节点
+
+> **一句话理解：一个 rclpy 程序总是同样四步：`init` 开机 → 创建节点 → `spin` 让它一直干活 → `shutdown` 关机。**
+
+### 最小节点模板
+
+```python
+import rclpy                    # ROS 2 的 Python 客户端库（Part 3）
+from rclpy.node import Node     # 节点基类
+
+
+class NovelPubNode(Node):                     # 继承 Node，直接获得发布、订阅、定时器、日志这些能力
+    def __init__(self, node_name):
+        super().__init__(node_name)           # 把节点注册到 ROS 2，这一行必须写
+        self.get_logger().info(f"Node {node_name} has been started.")
+
+
+def main(args=None):
+    rclpy.init(args=args)              # ① 开机
+    node = NovelPubNode("novel_pub")   # ② 创建节点
+    rclpy.spin(node)                   # ③ 一直运行，直到按 Ctrl+C
+    rclpy.shutdown()                   # ④ 关机
+```
+
+运行后终端打印一行，然后程序**停在那里不动**。这是正常的，说明节点正在 `spin` 里待命：
+
+```
+[INFO] [1729670400.123456789] [novel_pub]: Node novel_pub has been started.
+```
+
+另开一个终端执行 `ros2 node list`，能看到 `/novel_pub`。
+
+### 四步对应开店
+
+| 步骤 | 代码 | 类比 | 实际做了什么 |
+|---|---|---|---|
+| ① | `rclpy.init()` | 拉开卷帘门、接通电源 | 初始化 ROS 2 的通信底层（DDS），并解析命令行参数 |
+| ② | `NovelPubNode("novel_pub")` | 店员上岗 | 创建节点，注册名字 `novel_pub` |
+| ③ | `rclpy.spin(node)` | 店员守在柜台前等客人 | 卡在这里不停循环：有新消息、定时器到点，就调用对应的**回调函数（Callback）** |
+| ④ | `rclpy.shutdown()` | 关门、断电 | 释放 ROS 2 占用的资源 |
+
+**顺序不能乱**：没 `init` 就创建节点会直接报错；`shutdown` 之后不能再创建节点或收发消息。
+
+### `spin` 为什么必不可少
+
+`spin` 的意思是"转圈"。它就是一个死循环，每转一圈都检查一遍"有没有事要干"：
+
+```
+while 没按 Ctrl+C:
+    有新消息到了？   → 调用订阅回调
+    定时器到点了？   → 调用定时器回调
+    都没有？         → 继续等
+```
+
+**举个例子**：给节点加一个"每 1 秒打印一次"的定时器（Timer）：
+
+```python
+self.create_timer(1.0, self.timer_cb)   # 每 1 秒调用一次 self.timer_cb
+```
+
+- **有 `spin`**：每秒打印一行，一直打印下去。
+- **没有 `spin`**：程序执行完第 ② 步就往下走到 `shutdown`，然后直接结束。定时器一次都不会触发，节点"上岗一秒就下班"。
+
+**一句话：回调函数只是"登记"了要做什么，真正去执行它们的是 `spin`。**
+
+### 常用方法速查
+
+| 方法 | 作用 | 什么时候用 |
+|---|---|---|
+| `rclpy.init(args=args)` | 初始化 ROS 2 | 程序最开头，**只调一次** |
+| `rclpy.spin(node)` | 一直运行节点，处理所有回调，直到 Ctrl+C | 最常用，99% 的节点都这样写 |
+| `rclpy.spin_once(node, timeout_sec=0.1)` | 只转**一圈**：处理一个回调就返回，最多等 0.1 秒 | 想在自己的 `while` 循环里顺便处理消息时 |
+| `rclpy.ok()` | 返回 `True`/`False`：ROS 2 是否还在运行 | 配合 `spin_once` 写循环：`while rclpy.ok():` |
+| `node.destroy_node()` | 销毁节点，释放它的发布者、订阅者、定时器 | `shutdown` 之前，显式清理 |
+| `rclpy.shutdown()` | 关闭 ROS 2 | 程序最后，**只调一次** |
+| `node.get_logger().info("...")` | 打印 INFO 日志，自动带时间戳和节点名 | 代替 `print()` |
+
+**注意：没有 `rclpy.close()` 这个方法**，关闭用的是 `rclpy.shutdown()`。容易记混，因为很多别的库用 `close()`。
+
+**日志（Logger）分 5 个级别**，从轻到重：`debug` → `info` → `warn` → `error` → `fatal`。比 `print()` 好的地方在于输出自带节点名，比如 `[novel_pub]`。系统里同时跑十几个节点时，看前缀就知道是谁打印的。
+
+### 更稳妥的写法：按 Ctrl+C 不报错
+
+上面的最小模板按 Ctrl+C 时，终端会刷出一大段 `KeyboardInterrupt` 报错，而且 `spin` 被打断后，后面的 `shutdown` 根本执行不到。实际项目里一般这样写：
+
+```python
+def main(args=None):
+    rclpy.init(args=args)
+    node = NovelPubNode("novel_pub")
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass                    # 按 Ctrl+C 是正常退出，不当成错误
+    finally:
+        node.destroy_node()     # 不管怎么退出，都先销毁节点
+        rclpy.shutdown()        # 再关闭 ROS 2
+```
+
+`finally` 里的代码**无论正常结束还是被打断都会执行**，保证"关门断电"这一步一定做完。
