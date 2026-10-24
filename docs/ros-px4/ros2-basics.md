@@ -1,10 +1,12 @@
 ---
-outline: [2, 3]
+outline: 2
 ---
 
 # ROS 2 基础
 
-## Part 1：ROS 是什么
+## Part 1：认识 ROS 2
+
+### ROS 是什么
 
 > **一句话理解：ROS 就是一个"让机器人里各个小程序互相说话"的工具箱。**
 
@@ -14,9 +16,9 @@ outline: [2, 3]
 
 ROS 名字里有"操作系统"，但它**不是** Windows、Ubuntu 那种系统，而是装在 Ubuntu 上的一套软件。
 
-## Part 2：ROS 与 ROS 2 的发展时间线
+### ROS 与 ROS 2 的发展时间线
 
-### 时间线
+#### 时间线
 
 ```
 2007  斯坦福大学的机器人项目里诞生雏形，随后由 Willow Garage 公司接手开发
@@ -32,7 +34,7 @@ ROS 名字里有"操作系统"，但它**不是** Windows、Ubuntu 那种系统�
 2026  ROS 2 Lyrical（长期支持版）
 ```
 
-### 为什么要从头做一个 ROS 2
+#### 为什么要从头做一个 ROS 2
 
 ROS 1 一开始是给实验室做研究用的，用到真实产品上就暴露出几个毛病：
 
@@ -45,7 +47,7 @@ ROS 1 一开始是给实验室做研究用的，用到真实产品上就暴露�
 
 **一句话总结：ROS 1 是实验室原型，ROS 2 是为了上真实产品重新做的版本。新学的话直接学 ROS 2。**
 
-### 版本规律
+#### 版本规律
 
 每年 5 月发一个新版本，名字按字母顺序排：
 
@@ -55,7 +57,7 @@ Foxy → Galactic → Humble → Iron → Jazzy → Kilted → Lyrical
 
 偶数年的版本是**长期支持版（LTS，Long-Term Support）**，维护 5 年，最适合拿来学习和做项目。
 
-## Part 3：rclpy 和 rclcpp
+### rclpy 和 rclcpp
 
 这两个是你写 ROS 2 程序时实际用的**客户端库（Client Library）**，作用一模一样：创建节点、发消息、收消息。区别只在用什么语言写。
 
@@ -71,18 +73,11 @@ Foxy → Galactic → Humble → Iron → Jazzy → Kilted → Lyrical
 
 **最关键的一点：两者可以混着用。** 它们底层走的是同一套通信系统，所以 Python 节点和 C++ 节点能直接互相收发消息。一般先用 Python 把整个系统跑通，哪个节点太慢了，再单独把它改写成 C++。
 
-## Part 4：节点、功能包和工作空间
+## Part 2：节点、话题和消息
 
-> **一句话理解：节点是干活的小程序，功能包是装节点的文件夹，工作空间是装功能包的总文件夹。**
+> **一句话理解：节点负责干活，话题负责传数据，消息规定传的数据长什么样。**
 
-三个概念一层套一层：
-
-```
-工作空间（Workspace）  ⊃  功能包（Package）  ⊃  节点（Node）
-      公司大楼                   部门                 员工
-```
-
-一个工作空间里可以放很多功能包，一个功能包里可以有好几个节点。下面用同一个例子把三层串起来：**飞手用地面站控制无人机飞行，机上的相机负责拍照，画面里一出现烟或火就报警。**
+这一部分只讲概念，不写代码。全程用同一个例子：**飞手用地面站控制无人机飞行，机上的相机负责拍照，画面里一出现烟或火就报警。**
 
 ### 节点（Node）
 
@@ -105,6 +100,94 @@ Foxy → Galactic → Humble → Iron → Jazzy → Kilted → Lyrical
 **拆开的好处**：
 - **一个出错不影响其他**：识别节点崩了，相机节点照样在拍，重启识别节点就能接着用。
 - **改一个不用动其他**：训练出一个更准的烟火识别模型，只需要换掉识别节点里的模型文件，相机节点和报警节点一行都不用改。
+
+### 话题（Topic）
+
+> **一句话理解：话题（Topic）就像一个"广播频道"，有人往频道里喊话，订阅了这个频道的人就都能听到。**
+
+节点之间"传数据"，最常用的方式就是**话题通信（Topic Communication）**。喊话的人不需要知道谁在听，听的人也不需要知道是谁在喊。
+
+#### 三个角色和一份"数据"
+
+| 概念 | 英文 | 作用 | 类比 |
+|---|---|---|---|
+| 发布者 | Publisher | 往话题里发数据 | 电台主播 |
+| 订阅者 | Subscriber | 从话题里收数据 | 收音机听众 |
+| 话题 | Topic | 数据走的"频道名"，比如 `/camera/image` | 电台频率，比如 FM 101.7 |
+| 消息 | Message | 话题里传的那份数据本身 | 主播说的那段话 |
+
+一个节点可以同时当发布者和订阅者。比如烟火识别节点：订阅照片，再发布识别结果。
+
+#### 用野火报警串起来
+
+把上面的 3 个节点换成话题来连：
+
+```
+[相机节点] ──发布──▶ /camera/image ──订阅──▶ [烟火识别节点] ──发布──▶ /fire_alert ──订阅──▶ [报警节点]
+                                   └──订阅──▶ [录像节点]
+```
+
+- 相机节点每秒往 `/camera/image` 发 30 张照片。
+- 烟火识别节点和录像节点**同时**订阅它，各拿一份，互不干扰。
+- 相机节点根本不知道有几个节点在用它的照片，这就叫**解耦（Decoupling）**。
+
+**好处**：以后想加一个"把画面传回地面站"的节点，只要新写一个订阅 `/camera/image` 的节点，**相机节点一行都不用改**。
+
+#### 话题通信的特点
+
+1. **多对多**：一个话题可以有多个发布者，也可以有多个订阅者。
+2. **单向、异步（Asynchronous）**：发布者发完就继续干自己的事，不等回复。好比群里发通知，发完就走，不管谁看了没。
+3. **适合持续不断的数据流**：传感器数据、位置、速度这类一直在更新的东西。
+
+如果需要"问一句、等一句回答"，比如"请拍一张照片，拍完告诉我存在哪"，话题就不合适了，要用另一种通信方式：**服务（Service）**。
+
+### 消息（Message）
+
+话题里不能随便塞东西，每个话题都规定了一种**消息类型（Message Type）**，就像一张固定格式的表格，每一格填什么都定好了。
+
+ROS 2 自带很多常用的消息类型：
+
+| 消息类型 | 装的是什么 | 野火报警里谁在用 |
+|---|---|---|
+| `std_msgs/msg/String` | 一段文字 | 简单的报警文字，比如"发现烟火" |
+| `sensor_msgs/msg/Image` | 一张图片：宽、高、编码方式、像素数据 | 相机节点发的照片 |
+| `geometry_msgs/msg/Point` | 一个点的坐标 x、y、z | 火点的位置 |
+
+也可以自己定义消息（具体做法见后面的 Part 5）。比如一条"烟火警报"消息可以这样设计：
+
+| 字段 | 类型 | 举例 |
+|---|---|---|
+| 目标类别 | 文字 | `fire` |
+| 置信度（Confidence） | 小数 | `0.92`，表示 YOLO26 有 92% 的把握 |
+| 画面里的位置 | 4 个整数 | 框的左上角 `(120, 80)`、宽 `60`、高 `45` |
+
+**最关键的一点：发布者和订阅者的话题名、消息类型都必须完全一致，才能通信。** 话题名差一个字母（`/fire_alert` 和 `/fire_alarm`），或者一边发 `String`、另一边按 `Image` 收，都会**什么都收不到，而且不会报错**。这是新手排查问题时最容易忽略的地方。
+
+### QoS：丢了要不要重发
+
+Part 1 提到 ROS 2 的底层是 DDS，可以设置"丢了要不要重发"，这个设置就叫 **QoS（Quality of Service，服务质量）**。最常用的是可靠性这一项：
+
+| 模式 | 意思 | 类比 | 适合 |
+|---|---|---|---|
+| Reliable（可靠） | 保证送到，丢了就重发 | 挂号信 | 控制指令、报警消息，一条都不能丢 |
+| Best Effort（尽力而为） | 发了就算，丢了不管 | 看直播，卡了一帧就直接跳过 | 摄像头照片，每秒 30 张，丢一两张无所谓，更看重快 |
+
+**举个例子**：`/camera/image` 用 Best Effort，网络卡顿时丢掉几张旧照片，烟火识别节点直接拿最新的一张来识别；`/fire_alert` 用 Reliable，因为漏掉一条"发现火"的警报后果严重。
+
+**一个常见的坑**：发布者用 Best Effort、订阅者用 Reliable，两边**不兼容，订阅者收不到任何数据**。订阅者要求"保证送到"，发布者却做不到。反过来（发布者 Reliable、订阅者 Best Effort）是可以的。PX4 通过 uXRCE-DDS 发到 ROS 2 的话题大多是 Best Effort，所以订阅 PX4 的话题时，要把订阅者的 QoS 也设成 Best Effort。
+
+## Part 3：功能包和工作空间
+
+> **一句话理解：功能包是装节点代码的文件夹，工作空间是装功能包的总文件夹。**
+
+三个概念一层套一层：
+
+```
+工作空间（Workspace）  ⊃  功能包（Package）  ⊃  节点（Node）
+      公司大楼                   部门                 员工
+```
+
+一个工作空间里可以放很多功能包，一个功能包里可以有好几个节点。下面接着用野火报警的 3 个节点。
 
 ### 功能包（Package）
 
@@ -164,7 +247,9 @@ ros2 run fire_alert alarm            # 启动报警节点
 | `usb_cam` | `/opt/ros/jazzy` | 别人写的，`apt` 直接装 |
 | `fire_alert` | `~/fire_ws/src` | 你自己写的，要自己编译 |
 
-从建工作空间到运行，一共 4 步：
+### 从建工作空间到运行
+
+一共 4 步：
 
 ```bash
 # 1. 建工作空间，在 src 里创建功能包
@@ -183,125 +268,276 @@ source install/setup.bash
 ros2 run fire_alert detector
 ```
 
-**新手最常踩的两个坑**：
+**注意**：一定要在工作空间**根目录**（`~/fire_ws`）运行 `colcon build`，不要在 `src/` 里运行，否则 `build/`、`install/` 会生成到错误的位置。
 
-- **新开终端忘了 `source`**：`source` 只对当前这个终端生效。新开一个终端，如果不再 `source` 一次，就会报错 `Package 'fire_alert' not found`。打个比方，`source` 就像给前台一份部门通讯录，换了新前台（新终端）却没给通讯录，就找不到 `fire_alert` 这个部门。
-- **在 `src/` 里运行 `colcon build`**：一定要在工作空间**根目录**（`~/fire_ws`）编译，否则 `build/`、`install/` 会生成到错误的位置。
+### 为什么每个终端都要 `source`
 
-## Part 5：消息
+> **一句话理解：`source install/setup.bash` 就是告诉当前这个终端："我自己写的包装在 `~/fire_ws/install` 里，找包、找 Python 模块时也去那里找。"**
 
-> **一句话理解：话题（Topic）就像一个"广播频道"，有人往频道里喊话，订阅了这个频道的人就都能听到。**
+`setup.bash` 里主要是一堆 `export`，设置这几个**环境变量（Environment Variable）**：
 
-Part 4 里的节点之间"传数据"，最常用的方式就是**话题通信（Topic Communication）**。喊话的人不需要知道谁在听，听的人也不需要知道是谁在喊。
+| 环境变量 | 作用 | 不设置会怎样 |
+|---|---|---|
+| `AMENT_PREFIX_PATH` | ROS 2 去哪些目录找功能包 | `ros2 run fire_alert camera` 报 `Package 'fire_alert' not found` |
+| `PYTHONPATH` | Python 去哪些目录找模块 | `ModuleNotFoundError: No module named 'fire_alert_interfaces'` |
+| `PATH` | 去哪些目录找可执行程序 | 找不到命令 |
+| `LD_LIBRARY_PATH` | 去哪些目录找 C/C++ 动态库（`.so`） | C++ 节点启动时找不到库 |
 
-### 三个角色和一份"数据"
+可以亲手对比一下：
 
-| 概念 | 英文 | 作用 | 类比 |
-|---|---|---|---|
-| 发布者 | Publisher | 往话题里发数据 | 电台主播 |
-| 订阅者 | Subscriber | 从话题里收数据 | 收音机听众 |
-| 话题 | Topic | 数据走的"频道名"，比如 `/camera/image` | 电台频率，比如 FM 101.7 |
-| 消息 | Message | 话题里传的那份数据本身 | 主播说的那段话 |
+```bash
+$ echo $AMENT_PREFIX_PATH
+/opt/ros/jazzy                       # 只有系统自带的包
 
-一个节点可以同时当发布者和订阅者。比如烟火识别节点：订阅照片，再发布识别结果。
-
-### 用野火报警串起来
-
-把 Part 4 的 3 个节点换成话题来连：
-
-```
-[相机节点] ──发布──▶ /camera/image ──订阅──▶ [烟火识别节点] ──发布──▶ /fire_alert ──订阅──▶ [报警节点]
-                                   └──订阅──▶ [录像节点]
+$ source ~/fire_ws/install/setup.bash
+$ echo $AMENT_PREFIX_PATH
+/home/tony/fire_ws/install/fire_alert:/opt/ros/jazzy     # 你的包被加到了最前面
 ```
 
-- 相机节点每秒往 `/camera/image` 发 30 张照片。
-- 烟火识别节点和录像节点**同时**订阅它，各拿一份，互不干扰。
-- 相机节点根本不知道有几个节点在用它的照片，这就叫**解耦（Decoupling）**。
+**为什么每个终端都要来一次？** 在 Linux 里，每个终端都是一个独立的**进程（Process）**，环境变量存在这个进程自己的内存里：
 
-**好处**：以后想加一个"把画面传回地面站"的节点，只要新写一个订阅 `/camera/image` 的节点，**相机节点一行都不用改**。
+```
+终端 A：source 过   →  AMENT_PREFIX_PATH 里有 fire_alert   ✅
+终端 B：新开的      →  AMENT_PREFIX_PATH 里只有 /opt/ros   ❌
+```
 
-### 消息：数据要有固定格式
+**打个比方**：环境变量是贴在**这一个**终端上的便利贴。终端 A 贴了"去 `~/fire_ws/install` 找包"，终端 B 上并没有这张便利贴；关掉终端 A，便利贴也跟着扔了。
 
-话题里不能随便塞东西，每个话题都规定了一种**消息类型（Message Type）**，就像一张固定格式的表格，每一格填什么都定好了。
+**为什么必须用 `source`，不能直接 `./install/setup.bash`？** 直接运行会先开一个**子进程**执行脚本，变量都设在子进程里，脚本跑完子进程退出，变量也就没了。`source` 是在**当前终端里**一行一行执行，设置才能留下来。
 
-ROS 2 自带很多常用的消息类型：
+**两个 `setup.bash`**：
 
-| 消息类型 | 装的是什么 | 野火报警里谁在用 |
+| 文件 | 负责什么 | 名称 |
 |---|---|---|
-| `std_msgs/msg/String` | 一段文字 | 简单的报警文字，比如"发现烟火" |
-| `sensor_msgs/msg/Image` | 一张图片：宽、高、编码方式、像素数据 | 相机节点发的照片 |
-| `geometry_msgs/msg/Point` | 一个点的坐标 x、y、z | 火点的位置 |
+| `/opt/ros/jazzy/setup.bash` | ROS 2 本身：`rclpy`、`std_msgs`、`ros2` 命令 | 底层（Underlay） |
+| `~/fire_ws/install/setup.bash` | 你自己写的包 | 上层（Overlay） |
 
-也可以自己定义消息。比如一条"烟火警报"消息可以这样设计：
+编译时如果已经 source 过系统那个，`install/setup.bash` 会把它一起带上，所以平时只 source 工作空间这一个就够了。
 
-| 字段 | 类型 | 举例 |
+**什么时候要重新 `source`**：
+
+| 情况 | 要不要 |
+|---|---|
+| 新开一个终端 | ✅ 要 |
+| **第一次**编译出一个新包（比如 Part 5 新建的 `fire_alert_interfaces`） | ✅ 要，`source` 只会登记当时已经存在的包 |
+| 改了 `.msg` 并重新编译 | ✅ 建议重新 source，并重启节点 |
+| 只改了 Python 节点代码，且编译时用了 `--symlink-install` | ❌ 不用，直接重新运行 |
+
+**省事的办法：写进 `~/.bashrc`**。每次新开终端都会自动执行一遍 `~/.bashrc`：
+
+```bash
+echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
+echo "source ~/fire_ws/install/setup.bash" >> ~/.bashrc
+```
+
+第二行要等工作空间至少编译过一次、`install/` 已经存在之后再加，否则每次开终端都会报"找不到文件"。如果同时有好几个工作空间，最好只把系统那一行写进 `.bashrc`，工作空间手动 source，免得几个工作空间的包互相串了。
+
+## Part 4：用 rclpy 写两个会通信的节点
+
+> **一句话理解：相机节点每秒往话题 `/camera/photo` 里"喊"一句"拍到 photo_1.jpg 了"，识别节点订阅这个话题，每听到一句就开始识别。**
+
+这一节就用野火报警里最前面的两个节点，写出能真正跑起来的代码：
+
+```
+[相机节点 camera] ──发布──▶ /camera/photo ──订阅──▶ [识别节点 detector]
+```
+
+### 先设计话题
+
+写代码之前，先把"频道"定下来。两边必须用**同一个话题名、同一种消息类型**（Part 2 里说过，差一点就什么都收不到）：
+
+| 项目 | 设计 | 说明 |
 |---|---|---|
-| 目标类别 | 文字 | `fire` |
-| 置信度（Confidence） | 小数 | `0.92`，表示 YOLO26 有 92% 的把握 |
-| 画面里的位置 | 4 个整数 | 框的左上角 `(120, 80)`、宽 `60`、高 `45` |
+| 话题名 | `/camera/photo` | 频道名，两个节点都写这个 |
+| 消息类型 | `std_msgs/msg/String` | 一段文字，最简单的消息 |
+| 消息内容 | `photo_1.jpg`、`photo_2.jpg`…… | 用文件名假装是一张照片 |
+| 发布者 | 相机节点 `camera` | 每 1 秒发一条 |
+| 订阅者 | 识别节点 `detector` | 收到一条就处理一条 |
 
-**最关键的一点：发布者和订阅者的话题名、消息类型都必须完全一致，才能通信。** 话题名差一个字母（`/fire_alert` 和 `/fire_alarm`），或者一边发 `String`、另一边按 `Image` 收，都会**什么都收不到，而且不会报错**。这是新手排查问题时最容易忽略的地方。
+**为什么不直接发真照片？** 发真照片要用 `sensor_msgs/msg/Image`，还要用 `cv_bridge` 在 ROS 图片和 OpenCV 图片之间转换，代码会多一倍。先用一段文字把"发 → 收"的流程跑通，以后把 `String` 换成 `Image`，**整体结构完全不变**。
 
-### 话题通信的特点
-
-1. **多对多**：一个话题可以有多个发布者，也可以有多个订阅者。
-2. **单向、异步（Asynchronous）**：发布者发完就继续干自己的事，不等回复。好比群里发通知，发完就走，不管谁看了没。
-3. **适合持续不断的数据流**：传感器数据、位置、速度这类一直在更新的东西。
-
-如果需要"问一句、等一句回答"，比如"请拍一张照片，拍完告诉我存在哪"，话题就不合适了，要用另一种通信方式：**服务（Service）**。
-
-### QoS：丢了要不要重发
-
-Part 2 提到 ROS 2 的底层是 DDS，可以设置"丢了要不要重发"，这个设置就叫 **QoS（Quality of Service，服务质量）**。最常用的是可靠性这一项：
-
-| 模式 | 意思 | 类比 | 适合 |
-|---|---|---|---|
-| Reliable（可靠） | 保证送到，丢了就重发 | 挂号信 | 控制指令、报警消息，一条都不能丢 |
-| Best Effort（尽力而为） | 发了就算，丢了不管 | 看直播，卡了一帧就直接跳过 | 摄像头照片，每秒 30 张，丢一两张无所谓，更看重快 |
-
-**举个例子**：`/camera/image` 用 Best Effort，网络卡顿时丢掉几张旧照片，烟火识别节点直接拿最新的一张来识别；`/fire_alert` 用 Reliable，因为漏掉一条"发现火"的警报后果严重。
-
-**一个常见的坑**：发布者用 Best Effort、订阅者用 Reliable，两边**不兼容，订阅者收不到任何数据**。订阅者要求"保证送到"，发布者却做不到。反过来（发布者 Reliable、订阅者 Best Effort）是可以的。PX4 通过 uXRCE-DDS 发到 ROS 2 的话题大多是 Best Effort，所以订阅 PX4 的话题时，要把订阅者的 QoS 也设成 Best Effort。
-
-## Part 6：用 rclpy 写第一个节点
-
-> **一句话理解：一个 rclpy 程序总是同样四步：`init` 开机 → 创建节点 → `spin` 让它一直干活 → `shutdown` 关机。**
-
-### 最小节点模板
+### 相机节点：发布者（camera.py）
 
 ```python
-import rclpy                    # ROS 2 的 Python 客户端库（Part 3）
-from rclpy.node import Node     # 节点基类
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
 
+class CameraNode(Node):
+    def __init__(self):
+        super().__init__("camera")
+        self.publisher = self.create_publisher(String, "/camera/photo", 10)
+        self.timer = self.create_timer(1.0, self.take_photo)
+        self.count = 0
 
-class NovelPubNode(Node):                     # 继承 Node，直接获得发布、订阅、定时器、日志这些能力
-    def __init__(self, node_name):
-        super().__init__(node_name)           # 把节点注册到 ROS 2，这一行必须写
-        self.get_logger().info(f"Node {node_name} has been started.")
-
+    def take_photo(self):
+        self.count += 1
+        msg = String()
+        msg.data = f"photo_{self.count}.jpg"
+        self.publisher.publish(msg)
+        self.get_logger().info(f"拍了一张：{msg.data}")
 
 def main(args=None):
-    rclpy.init(args=args)              # ① 开机
-    node = NovelPubNode("novel_pub")   # ② 创建节点
-    rclpy.spin(node)                   # ③ 一直运行，直到按 Ctrl+C
-    rclpy.shutdown()                   # ④ 关机
+    rclpy.init(args=args)
+    node = CameraNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
 ```
 
-运行后终端打印一行，然后程序**停在那里不动**。这是正常的，说明节点正在 `spin` 里待命：
+逐行讲解：
+
+| 代码 | 意思 |
+|---|---|
+| `import rclpy` | 导入 ROS 2 的 Python 客户端库（Part 1） |
+| `from rclpy.node import Node` | 导入节点基类，所有节点都从它继承 |
+| `from std_msgs.msg import String` | 导入"一段文字"这种消息类型 |
+| `class CameraNode(Node):` | 定义相机节点。继承 `Node` 后，自动拥有发布、订阅、定时器、日志这些能力 |
+| `super().__init__("camera")` | 把节点注册到 ROS 2，**节点名**叫 `camera`。这一行必须写 |
+| `self.create_publisher(String, "/camera/photo", 10)` | 创建发布者，三个参数：**发什么类型**（`String`）、**发到哪个话题**（`/camera/photo`）、**队列长度**（`10`，下面细讲） |
+| `self.create_timer(1.0, self.take_photo)` | 创建定时器：每 1.0 秒自动调用一次 `take_photo`。注意 `take_photo` 后面**没有括号**，是把函数"交给"定时器，而不是现在就调用 |
+| `self.count = 0` | 计数器，记录拍到第几张 |
+| `def take_photo(self):` | 定时器的**回调函数（Callback）**：每次定时器到点，就执行这里面的代码 |
+| `self.count += 1` | 张数加 1 |
+| `msg = String()` | 拿一张空白的 `String` "表格" |
+| `msg.data = f"photo_{self.count}.jpg"` | 往表格的 `data` 格里填内容。`String` 只有 `data` 这一格 |
+| `self.publisher.publish(msg)` | **发出去**：把这条消息发到 `/camera/photo` 话题里 |
+| `self.get_logger().info(...)` | 打印一行日志，方便看到"确实发了" |
+| `rclpy.init(args=args)` | ① 开机：初始化 ROS 2 |
+| `node = CameraNode()` | ② 创建节点：发布者、定时器都在这一步建好 |
+| `rclpy.spin(node)` | ③ 一直运行：定时器每到 1 秒，`spin` 就去调用一次 `take_photo` |
+| `rclpy.shutdown()` | ④ 关机：释放资源 |
+
+**队列长度 `10` 是什么？** 发布者手里有一个"待发箱"，最多放 10 条。比如网络突然卡了 3 秒，这 3 秒里拍的 3 张照片先放在待发箱里排队，网络好了再发。如果卡太久、攒到第 11 条，最旧的那条就被扔掉。这是 Part 2 里 QoS 的一部分，**新手直接写 `10` 就行**。
+
+### 识别节点：订阅者（detector.py）
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+
+class DetectorNode(Node):
+    def __init__(self):
+        super().__init__("detector")
+        self.subscription = self.create_subscription(
+            String, "/camera/photo", self.on_photo, 10
+        )
+
+    def on_photo(self, msg):
+        self.get_logger().info(f"收到 {msg.data}，开始识别烟火...")
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = DetectorNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
+```
+
+前 3 行导入和最后的 `main` 跟相机节点完全一样，只讲不一样的地方：
+
+| 代码 | 意思 |
+|---|---|
+| `super().__init__("detector")` | 节点名叫 `detector` |
+| `self.create_subscription(String, "/camera/photo", self.on_photo, 10)` | 创建订阅者，四个参数：**收什么类型**（`String`）、**听哪个话题**（`/camera/photo`）、**收到后交给谁处理**（`self.on_photo`）、**队列长度**（`10`） |
+| `def on_photo(self, msg):` | 订阅的回调函数。每收到一条消息，ROS 2 就调用它一次，并把消息作为 `msg` 传进来 |
+| `msg.data` | 取出消息里的文字，比如 `photo_3.jpg` |
+
+**对比着看，发布和订阅几乎是对称的：**
+
+| | 相机节点（发布者） | 识别节点（订阅者） |
+|---|---|---|
+| 创建 | `create_publisher(类型, 话题, 10)` | `create_subscription(类型, 话题, 回调, 10)` |
+| 谁触发 | 定时器每 1 秒触发 `take_photo` | 新消息到达触发 `on_photo` |
+| 干什么 | `publish(msg)` 把消息发出去 | 从 `msg.data` 读出内容 |
+
+真实项目里，`on_photo` 里面就是"把照片交给 YOLO26 推理，发现烟火就再发布到 `/fire_alert`"，结构和这里一模一样，只是函数体变长了。
+
+**三个"名字"别搞混：**
+
+| 名字 | 例子 | 是什么 | 在哪能看到 |
+|---|---|---|---|
+| 类名 | `CameraNode` | Python 里的类名，随便起 | 只在代码里 |
+| 节点名 | `camera` | 节点在 ROS 2 里的名字 | `ros2 node list` |
+| 话题名 | `/camera/photo` | 数据走的频道 | `ros2 topic list` |
+
+**真正决定两个节点能不能通信的，只有话题名和消息类型。** 类名、节点名、文件名都不影响。
+
+### 跑起来看看
+
+1. 把 `camera.py` 放到 Part 3 的 `fire_alert/fire_alert/` 文件夹里，和 `detector.py` 放一起。
+2. 在 `setup.py` 里登记这两个节点，告诉 ROS 2 "`ros2 run` 时这个名字对应哪个文件的 `main`"：
+
+```python
+entry_points={
+    'console_scripts': [
+        'camera = fire_alert.camera:main',      # ros2 run fire_alert camera   → camera.py 的 main()
+        'detector = fire_alert.detector:main',  # ros2 run fire_alert detector → detector.py 的 main()
+    ],
+},
+```
+
+3. 在 `package.xml` 里加上依赖（用 `ros2 pkg create ... --dependencies rclpy std_msgs` 创建包时会自动加好）：
+
+```xml
+<depend>rclpy</depend>
+<depend>std_msgs</depend>
+```
+
+4. 编译，然后**开两个终端**，各自 `source` 后运行一个节点：
+
+```bash
+cd ~/fire_ws && colcon build
+```
+
+```bash
+# 终端 1
+source ~/fire_ws/install/setup.bash
+ros2 run fire_alert camera
+```
+
+```bash
+# 终端 2
+source ~/fire_ws/install/setup.bash
+ros2 run fire_alert detector
+```
+
+两个终端各自每秒多一行（时间戳省略）：
 
 ```
-[INFO] [1729670400.123456789] [novel_pub]: Node novel_pub has been started.
+# 终端 1（相机）
+[INFO] [...] [camera]: 拍了一张：photo_1.jpg
+[INFO] [...] [camera]: 拍了一张：photo_2.jpg
+[INFO] [...] [camera]: 拍了一张：photo_3.jpg
+
+# 终端 2（识别）
+[INFO] [...] [detector]: 收到 photo_2.jpg，开始识别烟火...
+[INFO] [...] [detector]: 收到 photo_3.jpg，开始识别烟火...
 ```
 
-另开一个终端执行 `ros2 node list`，能看到 `/novel_pub`。
+识别节点没收到 `photo_1.jpg`，因为它比相机晚启动，第 1 张发出去时还没人在听。就像收音机晚开了几秒，错过的节目不会补播。
 
-### 四步对应开店
+### 用命令行"偷看"话题
+
+再开第 3 个终端（记得 `source`），不用写代码就能检查话题：
+
+| 命令 | 输出 | 用途 |
+|---|---|---|
+| `ros2 topic list` | `/camera/photo`（还有两个系统自带的话题） | 看现在有哪些话题 |
+| `ros2 topic echo /camera/photo` | `data: photo_7.jpg`，然后每秒一条 | 直接偷听话题内容，相当于临时加了一个订阅者 |
+| `ros2 topic info /camera/photo` | `Type: std_msgs/msg/String`、`Publisher count: 1`、`Subscription count: 1` | 看类型、有几个发布者和订阅者 |
+| `ros2 topic hz /camera/photo` | `average rate: 1.000` | 看每秒发多少条 |
+
+**排查"收不到"时最有用的是 `ros2 topic info`**。比如识别节点里不小心把话题写成了 `/camera/photos`（多了个 s），它不会报错，只是一直安静。这时用 `ros2 topic list` 会看到**两个**话题：`/camera/photo` 和 `/camera/photos`，再用 `info` 分别看：`/camera/photo` 是"1 个发布者、0 个订阅者"，`/camera/photos` 是"0 个发布者、1 个订阅者"。两边各说各的，问题一眼就出来了。
+
+### 回头看：每个 rclpy 程序都是四步
+
+两个节点的 `main` 都是同样四步，可以对应成开一家店：
 
 | 步骤 | 代码 | 类比 | 实际做了什么 |
 |---|---|---|---|
 | ① | `rclpy.init()` | 拉开卷帘门、接通电源 | 初始化 ROS 2 的通信底层（DDS），并解析命令行参数 |
-| ② | `NovelPubNode("novel_pub")` | 店员上岗 | 创建节点，注册名字 `novel_pub` |
-| ③ | `rclpy.spin(node)` | 店员守在柜台前等客人 | 卡在这里不停循环：有新消息、定时器到点，就调用对应的**回调函数（Callback）** |
+| ② | `CameraNode()` | 店员上岗 | 创建节点，注册名字 `camera`，建好发布者和定时器 |
+| ③ | `rclpy.spin(node)` | 店员守在柜台前等客人 | 卡在这里不停循环：有新消息、定时器到点，就调用对应的回调函数 |
 | ④ | `rclpy.shutdown()` | 关门、断电 | 释放 ROS 2 占用的资源 |
 
 **顺序不能乱**：没 `init` 就创建节点会直接报错；`shutdown` 之后不能再创建节点或收发消息。
@@ -312,46 +548,26 @@ def main(args=None):
 
 ```
 while 没按 Ctrl+C:
-    有新消息到了？   → 调用订阅回调
-    定时器到点了？   → 调用定时器回调
+    有新消息到了？   → 调用订阅回调（识别节点的 on_photo）
+    定时器到点了？   → 调用定时器回调（相机节点的 take_photo）
     都没有？         → 继续等
 ```
 
-**举个例子**：给节点加一个"每 1 秒打印一次"的定时器（Timer）：
+回头看两个节点的代码，你会发现**我们从来没有自己调用过 `take_photo` 或 `on_photo`**，只是在 `__init__` 里把它们"登记"给了定时器和订阅者。真正去调用它们的是 `spin`。
 
-```python
-self.create_timer(1.0, self.timer_cb)   # 每 1 秒调用一次 self.timer_cb
-```
-
-- **有 `spin`**：每秒打印一行，一直打印下去。
-- **没有 `spin`**：程序执行完第 ② 步就往下走到 `shutdown`，然后直接结束。定时器一次都不会触发，节点"上岗一秒就下班"。
+- **有 `spin`**：相机每秒拍一张，识别节点每秒收一张。
+- **没有 `spin`**：程序执行完第 ② 步就直接走到 `shutdown`，然后结束。相机一张都不会拍，识别节点一条都收不到，节点"上岗一秒就下班"。
 
 **一句话：回调函数只是"登记"了要做什么，真正去执行它们的是 `spin`。**
 
-### 常用方法速查
-
-| 方法 | 作用 | 什么时候用 |
-|---|---|---|
-| `rclpy.init(args=args)` | 初始化 ROS 2 | 程序最开头，**只调一次** |
-| `rclpy.spin(node)` | 一直运行节点，处理所有回调，直到 Ctrl+C | 最常用，99% 的节点都这样写 |
-| `rclpy.spin_once(node, timeout_sec=0.1)` | 只转**一圈**：处理一个回调就返回，最多等 0.1 秒 | 想在自己的 `while` 循环里顺便处理消息时 |
-| `rclpy.ok()` | 返回 `True`/`False`：ROS 2 是否还在运行 | 配合 `spin_once` 写循环：`while rclpy.ok():` |
-| `node.destroy_node()` | 销毁节点，释放它的发布者、订阅者、定时器 | `shutdown` 之前，显式清理 |
-| `rclpy.shutdown()` | 关闭 ROS 2 | 程序最后，**只调一次** |
-| `node.get_logger().info("...")` | 打印 INFO 日志，自动带时间戳和节点名 | 代替 `print()` |
-
-**注意：没有 `rclpy.close()` 这个方法**，关闭用的是 `rclpy.shutdown()`。容易记混，因为很多别的库用 `close()`。
-
-**日志（Logger）分 5 个级别**，从轻到重：`debug` → `info` → `warn` → `error` → `fatal`。比 `print()` 好的地方在于输出自带节点名，比如 `[novel_pub]`。系统里同时跑十几个节点时，看前缀就知道是谁打印的。
-
 ### 更稳妥的写法：按 Ctrl+C 不报错
 
-上面的最小模板按 Ctrl+C 时，终端会刷出一大段 `KeyboardInterrupt` 报错，而且 `spin` 被打断后，后面的 `shutdown` 根本执行不到。实际项目里一般这样写：
+上面的 `main` 按 Ctrl+C 时，终端会刷出一大段 `KeyboardInterrupt` 报错，而且 `spin` 被打断后，后面的 `shutdown` 根本执行不到。实际项目里一般这样写（两个节点都一样，只是类名不同）：
 
 ```python
 def main(args=None):
     rclpy.init(args=args)
-    node = NovelPubNode("novel_pub")
+    node = CameraNode()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -362,3 +578,347 @@ def main(args=None):
 ```
 
 `finally` 里的代码**无论正常结束还是被打断都会执行**，保证"关门断电"这一步一定做完。
+
+### 常用方法速查
+
+| 方法 | 作用 | 什么时候用 |
+|---|---|---|
+| `rclpy.init(args=args)` | 初始化 ROS 2 | 程序最开头，**只调一次** |
+| `self.create_publisher(类型, 话题, 10)` | 创建发布者 | 节点要往外发数据时 |
+| `self.create_subscription(类型, 话题, 回调, 10)` | 创建订阅者 | 节点要接收数据时 |
+| `self.create_timer(秒数, 回调)` | 创建定时器，每隔几秒调用一次回调 | 需要定期干活，比如每秒拍一张 |
+| `publisher.publish(msg)` | 把一条消息发到话题 | 在定时器回调或订阅回调里 |
+| `rclpy.spin(node)` | 一直运行节点，处理所有回调，直到 Ctrl+C | 最常用，99% 的节点都这样写 |
+| `rclpy.spin_once(node, timeout_sec=0.1)` | 只转**一圈**：处理一个回调就返回，最多等 0.1 秒 | 想在自己的 `while` 循环里顺便处理消息时 |
+| `rclpy.ok()` | 返回 `True`/`False`：ROS 2 是否还在运行 | 配合 `spin_once` 写循环：`while rclpy.ok():` |
+| `node.destroy_node()` | 销毁节点，释放它的发布者、订阅者、定时器 | `shutdown` 之前，显式清理 |
+| `rclpy.shutdown()` | 关闭 ROS 2 | 程序最后，**只调一次** |
+| `self.get_logger().info("...")` | 打印 INFO 日志，自动带时间戳和节点名 | 代替 `print()` |
+
+**注意：没有 `rclpy.close()` 这个方法**，关闭用的是 `rclpy.shutdown()`。容易记混，因为很多别的库用 `close()`。
+
+**日志（Logger）分 5 个级别**，从轻到重：`debug` → `info` → `warn` → `error` → `fatal`。比 `print()` 好的地方在于输出自带节点名，比如 `[camera]`、`[detector]`。系统里同时跑十几个节点时，看前缀就知道是谁打印的。
+
+## Part 5：自定义消息
+
+> **一句话理解：`.msg` 文件就是一张自己设计的"表格模板"。编译时 ROS 2 把它翻译成 Python 类和 C++ 结构体，节点里像用 `String` 一样 `import` 进来就能用。**
+
+### 为什么 `String` 不够用
+
+Part 4 的相机节点只发了一个文件名 `photo_3.jpg`。现在识别节点还想知道**这是第几张**、**拍照时无人机飞多高**（高度不同，火在画面里的大小不同）。
+
+如果硬塞进 `String`，只能拼成一串文字，再让对方拆开：
+
+```python
+# 相机节点：拼
+msg.data = "3,photo_3.jpg,50.0"
+
+# 识别节点：拆
+id_str, filename, alt_str = msg.data.split(",")
+altitude = float(alt_str)
+```
+
+问题很明显：
+
+- **顺序全靠约定**：哪天相机节点把高度挪到第一个，识别节点不会报错，只会把 `50.0` 当成张数，悄悄算错。
+- **类型全靠手动转换**：`"50.0"` 是文字，每次都要自己 `float()`。
+- **别人看不懂**：`ros2 topic echo` 只能看到一串 `"3,photo_3.jpg,50.0"`，不知道每一段是什么意思。
+
+换成自定义消息后，每个字段都有**名字**和**类型**：
+
+```python
+msg.id = 3
+msg.filename = "photo_3.jpg"
+msg.altitude = 50.0
+```
+
+对方用 `msg.altitude` 直接取，拿到的就是小数，不用拆也不用转。
+
+### 设计 `PhotoInfo.msg`
+
+```
+uint32 id          # 第几张，从 1 开始
+string filename    # 文件名，比如 photo_3.jpg
+float32 altitude   # 拍照时无人机的高度，单位：米
+```
+
+格式就是**一行一个字段：`类型 字段名`**，`#` 后面是注释。
+
+**命名规则（写错会编译失败）：**
+
+| 写什么 | 规则 | 正确 | 错误 |
+|---|---|---|---|
+| 文件名 | 大驼峰（CamelCase），首字母大写 | `PhotoInfo.msg` | `photo_info.msg` |
+| 字段名 | 小写加下划线（snake_case） | `altitude`、`frame_id` | `Altitude`、`frameId` |
+
+**常用字段类型：**
+
+| 类型 | 装什么 | 例子 |
+|---|---|---|
+| `bool` | 真/假 | `bool is_fire` |
+| `int32` / `uint32` | 整数 / 非负整数 | `uint32 id` |
+| `float32` / `float64` | 小数（单精度 / 双精度） | `float32 confidence` |
+| `string` | 文字 | `string label` |
+| `类型[]` | 列表，长度不固定 | `float32[] scores` |
+| `包名/消息名` | 嵌套别的消息 | `std_msgs/Header header`（带时间戳和坐标系名） |
+
+**Python 里对应的类型**：`uint32` → `int`，`float32` → `float`，`string` → `str`，`float32[]` → 列表（或数组）。赋值时类型不对会直接报错，比如 `msg.id = "3"` 会抛 `AssertionError`。这正是自定义消息比 `String` 安全的地方。
+
+### 第 1 步：建一个专门放消息的包
+
+Part 4 之后的工作空间里只有一个 `fire_alert` 包。现在再加一个 `fire_alert_interfaces`：
+
+```bash
+cd ~/fire_ws/src
+ros2 pkg create --build-type ament_cmake --license Apache-2.0 fire_alert_interfaces
+cd fire_alert_interfaces
+rm -rf include src      # 这两个是给 C++ 代码准备的空文件夹，接口包用不上
+mkdir msg
+```
+
+然后把上面的内容存成 `msg/PhotoInfo.msg`。
+
+**为什么必须是 `ament_cmake`？** 把 `.msg` 翻译成 Python 和 C++ 代码的工具叫 `rosidl`，它只能在 CMake 构建流程里运行，`ament_python` 包的 `setup.py` 调用不了它。截至 Lyrical（2026 年 5 月发布的 LTS），这一点仍然没有变。所以**消息放 CMake 包，节点照样写 Python**，两边互不影响。
+
+### 第 2 步：在 `CMakeLists.txt` 里登记
+
+`ros2 pkg create` 生成的 `CMakeLists.txt` 里有一些测试相关的内容，接口包用不到，可以整个替换成：
+
+```cmake
+cmake_minimum_required(VERSION 3.8)
+project(fire_alert_interfaces)
+
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/PhotoInfo.msg"
+)
+
+ament_package()
+```
+
+| 代码 | 意思 |
+|---|---|
+| `project(fire_alert_interfaces)` | 包名。下面的 `${PROJECT_NAME}` 就是它 |
+| `find_package(rosidl_default_generators REQUIRED)` | 找到"翻译工具" `rosidl` |
+| `rosidl_generate_interfaces(...)` | **核心一行**：把列出来的 `.msg` 文件翻译成 Python 和 C++ 代码。以后加新消息，就在括号里加一行 |
+| `ament_package()` | 固定结尾，告诉 ROS 2 "这个包配置完了" |
+
+如果消息里嵌套了别的包的消息，比如用了 `std_msgs/Header`，要多两处：`find_package(std_msgs REQUIRED)`，以及在 `rosidl_generate_interfaces(...)` 括号里加 `DEPENDENCIES std_msgs`。
+
+### 第 3 步：在 `package.xml` 里登记
+
+在 `<buildtool_depend>ament_cmake</buildtool_depend>` 下面加 3 行：
+
+```xml
+<buildtool_depend>rosidl_default_generators</buildtool_depend>
+<exec_depend>rosidl_default_runtime</exec_depend>
+<member_of_group>rosidl_interface_packages</member_of_group>
+```
+
+| 代码 | 意思 |
+|---|---|
+| `buildtool_depend rosidl_default_generators` | **编译时**要用到翻译工具 |
+| `exec_depend rosidl_default_runtime` | **运行时**要用到消息的底层支持库 |
+| `member_of_group rosidl_interface_packages` | 声明"我是一个接口包"，`colcon` 会照这个来安排编译 |
+
+`CMakeLists.txt` 和 `package.xml` 分工不同：`CMakeLists.txt` 写**怎么编译**，`package.xml` 写**依赖谁**。两处都要写，少一处都会出错。
+
+### 第 4 步：编译并检查
+
+```bash
+cd ~/fire_ws
+colcon build --packages-select fire_alert_interfaces   # 只编译这一个包，更快
+source install/setup.bash
+ros2 interface show fire_alert_interfaces/msg/PhotoInfo
+```
+
+能打印出 `.msg` 里的 3 个字段，就说明成功了：
+
+```
+uint32 id          # 第几张，从 1 开始
+string filename    # 文件名，比如 photo_3.jpg
+float32 altitude   # 拍照时无人机的高度，单位：米
+```
+
+**编译时到底发生了什么？** `rosidl` 读入 `PhotoInfo.msg`，生成了好几份代码，放进 `install/` 里：
+
+```
+PhotoInfo.msg ──rosidl 翻译──┬──▶ Python 类  PhotoInfo  （rclpy 用）
+                             ├──▶ C++ 结构体 PhotoInfo  （rclcpp 用）
+                             └──▶ DDS 传输用的类型描述   （底层通信用）
+```
+
+就像同一张表格模板，印出了中文版、英文版，还有一份给快递公司看的版本。Python 节点和 C++ 节点各用各的，但传出去的数据格式完全一样，所以**Python 写的相机节点和 C++ 写的识别节点也能直接通信**。
+
+### 第 5 步：节点改用 `PhotoInfo`
+
+先在 `fire_alert` 的 `package.xml` 里加一行依赖，表示"我要用 `fire_alert_interfaces` 里的消息"：
+
+```xml
+<depend>fire_alert_interfaces</depend>
+```
+
+**相机节点**（`camera.py`）只改 4 处，用 `# 改` 标出：
+
+```python
+import rclpy
+from rclpy.node import Node
+from fire_alert_interfaces.msg import PhotoInfo                              # 改
+
+
+class CameraNode(Node):
+    def __init__(self):
+        super().__init__("camera")
+        self.publisher = self.create_publisher(PhotoInfo, "/camera/photo", 10)  # 改
+        self.timer = self.create_timer(1.0, self.take_photo)
+        self.count = 0
+
+    def take_photo(self):
+        self.count += 1
+        msg = PhotoInfo()                                                     # 改
+        msg.id = self.count                                                   # 改：分别填 3 个字段
+        msg.filename = f"photo_{self.count}.jpg"
+        msg.altitude = 50.0                                                   # 假装无人机悬停在 50 米
+        self.publisher.publish(msg)
+        self.get_logger().info(f"拍了第 {msg.id} 张：{msg.filename}")
+```
+
+**识别节点**（`detector.py`）只改 3 处：
+
+```python
+import rclpy
+from rclpy.node import Node
+from fire_alert_interfaces.msg import PhotoInfo                     # 改
+
+
+class DetectorNode(Node):
+    def __init__(self):
+        super().__init__("detector")
+        self.subscription = self.create_subscription(
+            PhotoInfo, "/camera/photo", self.on_photo, 10            # 改
+        )
+
+    def on_photo(self, msg):
+        self.get_logger().info(                                     # 改：直接按名字取字段
+            f"收到第 {msg.id} 张 {msg.filename}，高度 {msg.altitude:.1f} 米，开始识别烟火..."
+        )
+```
+
+`main` 函数一行都不用改。
+
+| 位置 | 改之前 | 改之后 |
+|---|---|---|
+| 导入 | `from std_msgs.msg import String` | `from fire_alert_interfaces.msg import PhotoInfo` |
+| 创建发布者/订阅者 | 类型写 `String` | 类型写 `PhotoInfo` |
+| 填内容 | `msg.data = "..."` | `msg.id`、`msg.filename`、`msg.altitude` 分别填 |
+| 取内容 | `msg.data` | `msg.altitude` 等，按名字直接取 |
+
+**导入路径的规律**：`from 包名.msg import 消息名`。`.msg` 文件叫 `PhotoInfo.msg`，类名就是 `PhotoInfo`。
+
+**注意：两个节点要一起改。** 话题名还是 `/camera/photo`，但类型从 `String` 变成了 `PhotoInfo`。如果只改了一边，两边类型不一致，就会出现 Part 2 说的"收不到也不报错"。
+
+### 第 6 步：一起编译、运行
+
+```bash
+cd ~/fire_ws
+colcon build              # 两个包一起编译
+source install/setup.bash
+```
+
+不用操心先编译哪个：`fire_alert` 的 `package.xml` 里写了依赖 `fire_alert_interfaces`，`colcon` 会**自动先编译接口包**。
+
+和 Part 4 一样开两个终端运行，识别节点这边会看到：
+
+```
+[INFO] [...] [detector]: 收到第 2 张 photo_2.jpg，高度 50.0 米，开始识别烟火...
+[INFO] [...] [detector]: 收到第 3 张 photo_3.jpg，高度 50.0 米，开始识别烟火...
+```
+
+再开一个终端（同样要 `source`）偷看话题，每个字段都带着名字：
+
+```bash
+$ ros2 topic echo /camera/photo
+id: 7
+filename: photo_7.jpg
+altitude: 50.0
+---
+```
+
+### 源代码怎么管理
+
+**1. 消息和节点分两个包放**
+
+```
+~/fire_ws/
+├── .gitignore                    ← 写上 build/ install/ log/
+└── src/
+    ├── fire_alert_interfaces/    ← ament_cmake：只放消息
+    │   ├── CMakeLists.txt
+    │   ├── package.xml
+    │   └── msg/
+    │       └── PhotoInfo.msg
+    └── fire_alert/               ← ament_python：只放节点
+        ├── package.xml           ← <depend>fire_alert_interfaces</depend>
+        ├── setup.py
+        └── fire_alert/
+            ├── camera.py
+            ├── detector.py
+            └── alarm.py
+```
+
+分开的好处：
+
+- **别人只想要你的消息**：比如地面站程序想订阅 `/camera/photo`，只装 `fire_alert_interfaces` 就够了，不用连带装上 YOLO26 和一大堆识别依赖。
+- **构建方式不同**：消息只能用 CMake，节点用 Python 写更方便。分开后各管各的，不用把 Python 节点也塞进 CMake 包。
+- **命名习惯**：接口包统一叫 `xxx_interfaces`，一看就知道里面只有消息。官方自带的 `std_msgs`、`sensor_msgs` 也是这样单独成包的。
+
+从 Lyrical 开始，也可以在**一个 `ament_cmake` 包里**同时放消息和 Python 节点，但官方发布说明仍然推荐把消息单独放一个包。
+
+**2. Git 只管 `src/`**
+
+`build/`、`install/`、`log/` 都是编译自动生成的，随时可以删掉重来，**不要提交到 Git**。在工作空间根目录建一个 `.gitignore`：
+
+```
+build/
+install/
+log/
+```
+
+换一台电脑时，把代码拉下来，`colcon build` 一下就全回来了。
+
+**3. 改了什么，要重新做什么**
+
+| 改了什么 | 要做什么 |
+|---|---|
+| `.msg` 文件（加字段、改类型） | 重新 `colcon build`，**再 `source` 一次**，两个节点都要重启 |
+| 只改了 Python 节点代码 | 重新 `colcon build` 再运行。如果编译时加了 `--symlink-install`，改完直接重新运行就行，不用再编译 |
+| 新加了一个 `.msg` 文件 | 先在 `CMakeLists.txt` 的 `rosidl_generate_interfaces(...)` 里加上它，再重新编译 |
+
+`--symlink-install` 的意思是：`install/` 里不复制一份 Python 文件，而是放一个指向 `src/` 里源文件的快捷方式。改了 `src/` 里的代码，`install/` 里马上就是新的。**写 Python 节点时推荐一直带着它**：`colcon build --symlink-install`。
+
+### 新手常见报错
+
+| 报错 | 原因 | 怎么办 |
+|---|---|---|
+| `ModuleNotFoundError: No module named 'fire_alert_interfaces'` | 当前终端没 `source`，或者接口包还没编译 | `colcon build` 后 `source install/setup.bash` |
+| `ros2 topic echo` 报 `The message type 'fire_alert_interfaces/msg/PhotoInfo' is invalid` | 运行 `echo` 的那个终端没 `source` | 在那个终端也 `source` 一次 |
+| `AttributeError: 'PhotoInfo' object has no attribute 'altitude'` | 改了 `.msg` 但没重新编译，Python 用的还是旧版本 | 重新 `colcon build` 并 `source` |
+| 编译报 `.msg` 文件名或字段名不合法 | 文件名不是大驼峰，或字段名用了大写 | 改成 `PhotoInfo.msg`、`altitude` |
+| `AssertionError`（赋值那一行） | 字段类型不对，比如给 `uint32` 赋了字符串 `"3"` | 按 `.msg` 里的类型赋值 |
+
+### 练习：把 Part 2 的烟火警报也做成消息
+
+识别节点发现烟火后要发给报警节点。照 Part 2 的设计，在同一个接口包里再加一个 `msg/FireAlert.msg`：
+
+```
+string label         # fire 或 smoke
+float32 confidence   # YOLO26 的置信度，比如 0.92
+int32 x              # 框左上角 x
+int32 y              # 框左上角 y
+int32 w              # 框宽
+int32 h              # 框高
+```
+
+然后在 `CMakeLists.txt` 里加一行 `"msg/FireAlert.msg"`，重新编译。识别节点在 `on_photo` 里发布到 `/fire_alert`，报警节点订阅它，整条野火报警链路就连起来了。
