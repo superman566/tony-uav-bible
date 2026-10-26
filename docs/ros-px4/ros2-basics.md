@@ -1,5 +1,5 @@
 ---
-outline: 2
+outline: [2,3]
 ---
 
 # ROS 2 基础
@@ -139,7 +139,7 @@ Foxy → Galactic → Humble → Iron → Jazzy → Kilted → Lyrical
 2. **单向、异步（Asynchronous）**：发布者发完就继续干自己的事，不等回复。好比群里发通知，发完就走，不管谁看了没。
 3. **适合持续不断的数据流**：传感器数据、位置、速度这类一直在更新的东西。
 
-如果需要"问一句、等一句回答"，比如"请拍一张照片，拍完告诉我存在哪"，话题就不合适了，要用另一种通信方式：**服务（Service）**。
+如果需要"问一句、等一句回答"，比如"请拍一张照片，拍完告诉我存在哪"，话题就不合适了，要用另一种通信方式：**服务（Service）**，见后面的 Part 6。
 
 ### 消息（Message）
 
@@ -483,7 +483,7 @@ entry_points={
 <depend>std_msgs</depend>
 ```
 
-4. 编译，然后**开两个终端**，各自 `source` 后运行一个节点：
+4. 编译，然后**开两个终端**，各自 `source` 后运行一个节点（节点多了以后，可以用 Part 7 的 launch 一条命令全部启动）：
 
 ```bash
 cd ~/fire_ws && colcon build
@@ -922,3 +922,343 @@ int32 h              # 框高
 ```
 
 然后在 `CMakeLists.txt` 里加一行 `"msg/FireAlert.msg"`，重新编译。识别节点在 `on_photo` 里发布到 `/fire_alert`，报警节点订阅它，整条野火报警链路就连起来了。
+
+## Part 6：服务
+
+> **一句话理解：服务（Service）就是"打电话"：一个节点问一句（请求，Request），另一个节点办完事回一句（响应，Response）。**
+
+Part 2 里的话题像广播，发完就不管谁听没听。但有些事情需要**等对方回话**，比如识别节点想让相机"用高分辨率拍一张，拍完告诉我存在哪"，这时就要用服务。
+
+### 服务和话题的区别
+
+| | 话题（Topic） | 服务（Service） |
+|---|---|---|
+| 比喻 | 广播电台：一直在播，想听就开收音机 | 打电话：问一句，答一句 |
+| 方向 | 单向，发完就走 | 双向，有请求就有响应 |
+| 什么时候发 | 持续不断，比如每秒 30 张照片 | 需要时才问一次 |
+| 角色 | 发布者 / 订阅者 | **服务端（Server）** / **客户端（Client）** |
+| 数量 | 多个发布者、多个订阅者都行 | **只能有一个服务端**，客户端可以有很多个 |
+| 野火报警里 | 相机持续发布 `/camera/photo` | 识别节点请求 `/camera/take_photo`：拍一张高清照片 |
+
+**怎么选**：数据**一直在更新**（画面、位置、速度），用话题；**偶尔做一件事，并且要知道结果**（拍一张、切换模式、复位传感器），用服务。
+
+一次服务调用的过程：
+
+```
+识别节点（客户端）                         相机节点（服务端）
+      │ ──请求：拍一张高清照片──▶                 │
+      │                                    拍照、保存……
+      │ ◀──响应：成功，photo_hd_1.jpg──            │
+```
+
+服务端平时什么都不做，**有人请求了才执行一次**。就像客服热线：没人打进来，客服就等着；一来电，就处理这一个问题，然后挂断。
+
+### `.srv`：服务的格式
+
+话题用 `.msg` 规定消息格式，服务用 `.srv`。区别是 `.srv` 用 `---` 分成两半：**上面是请求，下面是响应**。
+
+ROS 2 自带一个最简单的服务类型 `std_srvs/srv/Trigger`（触发），不用自己定义就能用：
+
+```
+                 # 请求：什么都不用带，就是"喂，干活"
+---
+bool success     # 响应：成没成功
+string message   # 响应：附带一句话，这里用来放文件名
+```
+
+如果请求里要带参数，比如指定分辨率，就自定义一个 `TakePhoto.srv`：
+
+```
+string resolution   # 请求：比如 "1920x1080"
+---
+bool success        # 响应：拍成功了没有
+string filename     # 响应：照片存在哪
+```
+
+做法和 Part 5 的 `.msg` 完全一样：放进 `fire_alert_interfaces/srv/` 文件夹，在 `CMakeLists.txt` 的 `rosidl_generate_interfaces(...)` 里加一行 `"srv/TakePhoto.srv"`，重新编译。Python 里用 `from fire_alert_interfaces.srv import TakePhoto` 导入。
+
+### 写一个拍照服务端（camera_service.py）
+
+下面直接用自带的 `Trigger`，不用编译接口包：
+
+```python
+import rclpy
+from rclpy.node import Node
+from std_srvs.srv import Trigger
+
+
+class CameraServiceNode(Node):
+    def __init__(self):
+        super().__init__("camera_service")
+        self.srv = self.create_service(Trigger, "/camera/take_photo", self.on_take_photo)
+        self.count = 0
+
+    def on_take_photo(self, request, response):
+        self.count += 1
+        response.success = True
+        response.message = f"photo_hd_{self.count}.jpg"
+        self.get_logger().info(f"收到拍照请求，已保存 {response.message}")
+        return response
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = CameraServiceNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
+```
+
+和 Part 4 的相机节点相比，只有这几行是新的：
+
+| 代码 | 意思 |
+|---|---|
+| `from std_srvs.srv import Trigger` | 导入服务类型。注意是 `.srv`，不是 `.msg` |
+| `self.create_service(Trigger, "/camera/take_photo", self.on_take_photo)` | 创建服务端，三个参数：**服务类型**、**服务名**、**收到请求后交给谁处理** |
+| `def on_take_photo(self, request, response):` | 服务的回调函数。ROS 2 会传进来两样东西：客户端发来的 `request`，和一张空白的 `response` |
+| `response.success = True` / `response.message = ...` | 把结果填进响应 |
+| `return response` | **必须 `return`**，响应才会发回给客户端。忘了写，客户端就收不到回答 |
+
+`main` 还是 Part 4 讲过的四步，一点没变。和订阅回调一样，`on_take_photo` 也是由 `spin` 来调用的。
+
+运行前还要两步登记：在 `setup.py` 的 `console_scripts` 里加一行 `'camera_service = fire_alert.camera_service:main'`，在 `package.xml` 里加 `<depend>std_srvs</depend>`。
+
+### 用命令行当客户端
+
+编译、`source` 之后，在一个终端启动服务端：
+
+```bash
+ros2 run fire_alert camera_service
+```
+
+另一个终端（同样要 `source`）用 `ros2 service call` 临时当一回客户端，"打个电话"：
+
+```bash
+$ ros2 service call /camera/take_photo std_srvs/srv/Trigger
+requester: making request: std_srvs.srv.Trigger_Request()
+
+response:
+std_srvs.srv.Trigger_Response(success=True, message='photo_hd_1.jpg')
+```
+
+服务端那边同时打印：
+
+```
+[INFO] [...] [camera_service]: 收到拍照请求，已保存 photo_hd_1.jpg
+```
+
+每调用一次，`photo_hd_` 后面的数字就加 1。
+
+常用的服务命令：
+
+| 命令 | 用途 |
+|---|---|
+| `ros2 service list` | 看现在有哪些服务 |
+| `ros2 service type /camera/take_photo` | 看服务类型，这里输出 `std_srvs/srv/Trigger` |
+| `ros2 service call 服务名 类型 "请求内容"` | 发一次请求。`Trigger` 的请求是空的，所以省略了最后的 `"请求内容"` |
+| `ros2 interface show std_srvs/srv/Trigger` | 看请求和响应各有哪些字段 |
+
+### 在代码里当客户端
+
+识别节点想在代码里请求拍照，核心就 3 行：
+
+```python
+self.client = self.create_client(Trigger, "/camera/take_photo")    # 在 __init__ 里创建客户端
+future = self.client.call_async(Trigger.Request())                  # 发请求，不等待，马上返回
+future.add_done_callback(lambda f: self.get_logger().info(f"照片在 {f.result().message}"))  # 回答到了再处理
+```
+
+`call_async` 里的 async 是"异步"的意思：请求发出去后**不傻等**，节点继续干别的。等响应回来了，`spin` 再去调用 `add_done_callback` 登记的函数。就像打电话给客服说"查好了回电给我"，挂了电话继续干活。
+
+**一个常见的坑**：服务端没启动时，请求发出去不会有人回答。实际代码里一般先用 `self.client.wait_for_service(timeout_sec=1.0)` 确认服务端在线，再发请求。
+
+### 顺带一提：动作（Action）
+
+如果要做的事**很久才能做完**，而且中途想看进度，比如"飞到 500 米外的火点上空"，服务就不太合适：客户端只能干等最后的结果，不知道进行到哪了，也没法中途喊停。这时用第三种通信方式：**动作（Action）**。它可以随时报告进度（"还剩 200 米"），中途也能取消。
+
+| 通信方式 | 一句话 | 例子 |
+|---|---|---|
+| 话题 | 一直广播 | 相机持续发画面 |
+| 服务 | 问一句，答一句 | 拍一张高清照片 |
+| 动作 | 交代一个长任务，过程中不断汇报，可以中途取消 | 飞到火点上空 |
+
+### 野火报警里什么时候用服务
+
+判断标准就一句话：**偶尔做一次的事，并且发起方需要知道结果，就用服务；一直在流动的数据，用话题。**
+
+| 场景 | 客户端 → 服务端 | 请求 | 响应 | 为什么用服务 |
+|---|---|---|---|---|
+| ① 拍高清照片取证 | 识别节点 → 相机节点 | 拍一张原图分辨率的照片 | 成功了没有、文件名 | YOLO26 平时只看缩小的 640×640 画面，发现火以后才要一张高清原图给飞手确认。偶尔一次，而且要知道存在哪 |
+| ② 暂停或恢复识别 | 地面站 → 识别节点 | `true` 开始 / `false` 暂停 | 设置成功了没有 | 起飞、降落、返航时不用找火，暂停识别能省机载电脑的算力和电。用自带的 `std_srvs/srv/SetBool` 就行 |
+| ③ 飞手确认警报 | 地面站 → 报警节点 | "这是误报"或"已确认，在处理" | 收到 | 报警节点会一直重复提醒，飞手点一下"已确认"它才停。必须确定报警节点收到了，所以要等回答 |
+| ④ 像素坐标换算成经纬度 | 识别节点 → 定位节点 | 框在画面里的位置，比如 `(120, 80)` | 火点的经纬度 | 一次纯计算：给输入，要输出。定位节点手里有无人机当前的位置、高度和云台角度，能算出火在地面上的哪里 |
+| ⑤ 查询状态 | 地面站 → 识别节点 | "汇报一下" | 当前模型名、每秒处理几帧 | 飞手想看一眼时才问，不需要一直广播 |
+
+把这几个服务加进 Part 2 的链路，大概是这样（实线是话题，虚线是服务）：
+
+```
+[相机节点] ──/camera/photo──▶ [识别节点] ──/fire_alert──▶ [报警节点] ──▶ 地面站
+     ▲                         ┊      ┊                        ▲
+     └┈┈┈ ① 拍高清照片 ┈┈┈┈┈┈┈┈┘      └┈┈ ④ 像素→经纬度 ┈┈▶ [定位节点]
+                                ▲                              ┊
+地面站 ┈┈┈ ② 暂停/恢复识别 ┈┈┈┈┈┘     地面站 ┈┈ ③ 确认警报 ┈┈┈┈┘
+```
+
+**容易用错的地方："发现火"的警报本身要用话题，不要用服务。** 看起来像是"识别节点通知报警节点"，好像可以用服务，其实不合适：
+
+- **想听的不止一个**：报警节点、录像节点（发现火就开始存视频）、地面站都想知道。话题可以有多个订阅者，服务一次只能问一个服务端。
+- **识别节点不应该等**：用服务的话，识别节点得等报警节点回答完才能接着看下一张照片，这期间可能漏掉新的火点。
+- **怕丢就设 QoS**：Part 2 讲过，把 `/fire_alert` 设成 Reliable 就能保证送到，不需要靠服务的"回答"来确认。
+
+同样，"飞到火点上空"要花一分钟左右，中途还要看进度、可能要取消，应该用上一节的动作，而不是服务。
+
+**一张表总结：**
+
+| 需求 | 用什么 |
+|---|---|
+| 相机画面、无人机位置、电量 | 话题（一直在更新） |
+| 发现火的警报 | 话题 + Reliable（多个节点要听，识别节点不能等） |
+| 拍高清照片、暂停识别、确认警报、坐标换算、查状态 | **服务**（偶尔一次，要知道结果） |
+| 飞到火点、绕火场飞一圈拍全景 | 动作（时间长，要看进度，能取消） |
+| 改配置，比如把置信度阈值调成 `0.6` | **参数（Parameter）**：用 `ros2 param set` 就能改，不用自己写服务。它底层其实也是服务，ROS 2 已经帮你写好了 |
+
+## Part 7：launch
+
+> **一句话理解：launch 就是"一键启动"：把要启动哪些节点、各自用什么参数写进一个 launch 文件，一条命令全部启动，按一次 Ctrl+C 全部关掉。**
+
+### 为什么需要 launch
+
+Part 4 里跑两个节点，要开两个终端，每个都先 `source` 再 `ros2 run`：
+
+```bash
+# 终端 1
+ros2 run fire_alert camera
+# 终端 2
+ros2 run fire_alert detector
+```
+
+两个还好。真到了无人机上，还有报警节点、相机驱动、定位节点、录像节点、和 PX4 通信的节点……十几个节点一个个手动启动，很容易漏，而且每次上电都要重来一遍。
+
+**打个比方**：`ros2 run` 像一个个按开关开灯；launch 文件像智能家居里的"回家模式"，按一下，灯、空调、窗帘一起打开。
+
+### 一个最简单的 launch 文件
+
+在 `fire_alert` 包里新建 `launch/fire_alert.launch.py`：
+
+```python
+from launch import LaunchDescription
+from launch_ros.actions import Node
+
+
+def generate_launch_description():
+    return LaunchDescription([
+        Node(package="fire_alert", executable="camera"),
+        Node(package="fire_alert", executable="detector", respawn=True),
+    ])
+```
+
+逐行讲解：
+
+| 代码 | 意思 |
+|---|---|
+| `from launch import LaunchDescription` | 导入"启动清单" |
+| `from launch_ros.actions import Node` | 导入"启动一个 ROS 2 节点"这个动作。注意这个 `Node` 和写节点时用的 `rclpy.node.Node` **不是一个东西**，名字一样而已 |
+| `def generate_launch_description():` | 函数名是**固定的**，`ros2 launch` 会来找这个函数 |
+| `LaunchDescription([...])` | 启动清单，列表里每一项是一个要启动的东西 |
+| `Node(package="fire_alert", executable="camera")` | 启动一个节点，相当于 `ros2 run fire_alert camera`。`executable` 就是 `setup.py` 里 `console_scripts` 登记的名字 |
+| `respawn=True` | 这个节点要是崩了，**自动重新启动**。Part 2 说过"识别节点崩了，重启它就能接着用"，这一项就是让它自动重启 |
+
+以后写好了报警节点，在列表里再加一行 `Node(package="fire_alert", executable="alarm")` 就行。
+
+### 登记到 `setup.py`
+
+launch 文件和节点代码不一样，**不会自动被装进 `install/`**，要在 `setup.py` 的 `data_files` 里加一行：
+
+```python
+import os
+from glob import glob
+
+# 在 setup() 的 data_files 列表里加：
+(os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
+```
+
+意思是：把 `launch/` 文件夹里所有 `.launch.py` 文件，复制到 `install/fire_alert/share/fire_alert/launch/`，`ros2 launch` 就去那里找。
+
+**漏了这一步，`ros2 launch` 会报找不到这个文件**，这是新手最常踩的坑。另外在 `package.xml` 里加一行 `<exec_depend>ros2launch</exec_depend>`，声明运行时要用到 launch。
+
+现在的包结构：
+
+```
+fire_alert/
+├── launch/
+│   └── fire_alert.launch.py   ← 新加的
+├── package.xml
+├── setup.py                   ← 登记 launch 文件
+└── fire_alert/
+    ├── camera.py
+    └── detector.py
+```
+
+### 跑起来看看
+
+重新编译、`source` 后，一条命令启动两个节点：
+
+```bash
+ros2 launch fire_alert fire_alert.launch.py
+```
+
+格式是 `ros2 launch 包名 launch文件名`，和 `ros2 run 包名 节点名` 一样，先找部门再找人。
+
+两个节点的日志都打印在**同一个终端**里，最前面多了一个进程名前缀，比如 `[camera-1]`、`[detector-2]`，看前缀就知道是谁说的：
+
+```
+[camera-1] [INFO] [...] [camera]: 拍了一张：photo_1.jpg
+[detector-2] [INFO] [...] [detector]: 收到 photo_1.jpg，开始识别烟火...
+[camera-1] [INFO] [...] [camera]: 拍了一张：photo_2.jpg
+[detector-2] [INFO] [...] [detector]: 收到 photo_2.jpg，开始识别烟火...
+```
+
+按一次 Ctrl+C，两个节点一起关掉。
+
+### launch 还能做什么
+
+除了"一起启动"，launch 文件还能顺手配置每个节点，**不用改节点代码**：
+
+| 功能 | 写法 | 野火报警里的例子 |
+|---|---|---|
+| 传参数 | `parameters=[{"confidence": 0.6}]` | 识别节点的置信度阈值（节点里要先用 `declare_parameter` 声明这个参数） |
+| 改话题名（重映射，Remapping） | `remappings=[("/camera/photo", "/camera_front/photo")]` | 识别节点代码里写死了听 `/camera/photo`，不改代码就让它改听前置相机的 `/camera_front/photo`。注意只能换话题名，**消息类型还是得一致** |
+| 改节点名 | `name="detector_front"` | 同一个识别程序跑两份，一份叫 `detector_front` 看前置相机，一份叫 `detector_down` 看下视相机。名字不改的话，两个节点都叫 `detector`，会撞名 |
+| 包含别人的 launch 文件 | `IncludeLaunchDescription(...)` | `usb_cam` 包自带 launch 文件，直接引进来，不用自己写相机配置 |
+| 自动重启 | `respawn=True` | 识别节点崩了自动拉起来 |
+
+比如无人机上有前置、下视两个相机，同一个识别程序跑两份，各看一个：
+
+```python
+Node(
+    package="fire_alert",
+    executable="detector",
+    name="detector_front",                                  # 改节点名，避免撞名
+    remappings=[("/camera/photo", "/camera_front/photo")],  # 改听前置相机
+    respawn=True,
+),
+Node(
+    package="fire_alert",
+    executable="detector",
+    name="detector_down",
+    remappings=[("/camera/photo", "/camera_down/photo")],   # 改听下视相机
+    respawn=True,
+),
+```
+
+`detector.py` 一行没改，靠 launch 文件就变成了两个各干各的节点。
+
+### `ros2 run` 和 `ros2 launch` 怎么选
+
+| | `ros2 run` | `ros2 launch` |
+|---|---|---|
+| 一次启动几个节点 | 1 个 | 想启动几个就几个 |
+| 参数 | 每次在命令行里手动敲 | 写在文件里，每次都一样 |
+| 关闭 | 每个终端各按一次 Ctrl+C | 按一次 Ctrl+C 全部关掉 |
+| 适合 | 调试单个节点 | 整套系统一起跑，比如无人机上电后的正式运行 |
+
+launch 文件除了 Python，也可以用 XML 或 YAML 写，但 ROS 2 里最常见的是 Python 版，文件名习惯以 `.launch.py` 结尾。
